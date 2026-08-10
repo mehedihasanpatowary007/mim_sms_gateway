@@ -44,9 +44,10 @@
                         </group>
                         <group string="Status">
                             <field name="active" widget="boolean_toggle"/>
-                            <field name="company_id" 
-                                   groups="base.group_multi_company" 
-                                   options="{'no_create': True}"/>
+                            <field name="company_ids"
+                                   widget="many2many_tags"
+                                   options="{'no_create': True}"
+                                   placeholder="Leave empty for all companies"/>
                             <field name="last_balance_check" readonly="1"/>
                         </group>
                     </group>
@@ -89,9 +90,7 @@
                 <field name="balance"/>
                 <field name="last_balance_check" optional="show"/>
                 <field name="active" widget="boolean_toggle"/>
-                <field name="company_id" 
-                       groups="base.group_multi_company" 
-                       optional="hide"/>
+                <field name="company_ids" widget="many2many_tags" optional="show"/>
             </list>
         </field>
     </record>

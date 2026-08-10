@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Remove templates from the retired Contact/CRM flows on module upgrade. -->
+    <delete model="sms.template"
+            search="[('name', 'in', ['Welcome Message - Contact', 'Follow-up Message - Contact', 'Birthday Wishes - Contact', 'Thank You Message - Contact', 'Welcome Message - Lead', 'Follow-up - Lead', 'Meeting Reminder - Lead', 'Opportunity Won - Lead', 'Quotation Sent - Lead', 'Promotional Offer - Lead'])]"/>
+
+    <data noupdate="1">
+        <record id="sms_template_invoice_generated" model="sms.template">
+            <field name="name">Invoice Generated</field>
+            <field name="model_id" ref="account.model_account_move"/>
+            <field name="body">Dear {{partner_id.name}}, your Invoice {{name}} for BDT {{amount_total}} has been generated. Due Date: {{invoice_date_due}}.
+Bridge Chemie Ltd.</field>
+        </record>
+
+        <record id="sms_template_payment_received" model="sms.template">
+            <field name="name">Payment Received</field>
+            <field name="model_id" ref="account.model_account_payment"/>
+            <field name="body">Dear {{partner_id.name}}, we have received your payment of BDT {{amount}} successfully. Ref: {{name}}.
+Bridge Chemie Ltd.</field>
+        </record>
+
+        <record id="sms_template_delivery" model="sms.template">
+            <field name="name">Customer Delivery</field>
+            <field name="model_id" ref="stock.model_stock_picking"/>
+            <field name="body">Dear {{partner_id.name}}, your Delivery {{name}} against Order {{origin}} is ready for dispatch.
+Bridge Chemie Ltd.</field>
+        </record>
+
+        <record id="sms_template_invoice_overdue" model="sms.template">
+            <field name="name">Invoice Overdue</field>
+            <field name="model_id" ref="account.model_account_move"/>
+            <field name="body">Dear {{partner_id.name}}, payment of BDT {{amount_residual}} for Invoice {{name}} was due on {{invoice_date_due}} and is now overdue. Please arrange payment at your earliest convenience.
+Bridge Chemie Ltd.</field>
+        </record>
+
+        <record id="sms_template_monthly_closing" model="sms.template">
+            <field name="name">Monthly Closing Statement</field>
+            <field name="model_id" ref="base.model_res_partner"/>
+            <field name="body">Dear {{partner_name}}, your account summary for {{month_name}}: Opening Outstanding: BDT {{opening_outstanding}}, Invoice Amount: BDT {{monthly_invoice_amount}}, Payment Received: BDT {{monthly_payment}}, Closing Outstanding: BDT {{closing_outstanding}}.
+Bridge Chemie Ltd.</field>
+        </record>
+
+        <record id="ir_cron_sms_invoice_overdue" model="ir.cron">
+            <field name="name">SMS: Send Invoice Overdue Notices</field>
+            <field name="model_id" ref="account.model_account_move"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_send_overdue_sms()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">hours</field>
+            <field name="active">True</field>
+        </record>
+
+        <record id="ir_cron_sms_monthly_closing" model="ir.cron">
+            <field name="name">SMS: Send Monthly Closing Statements</field>
+            <field name="model_id" ref="model_sms_automation"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_send_monthly_closing()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active">True</field>
+        </record>
+    </data>
+</odoo>

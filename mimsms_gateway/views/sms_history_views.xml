@@ -15,7 +15,6 @@
                         <group>
                             <field name="mobile"/>
                             <field name="partner_id"/>
-                            <field name="lead_id"/>
                             <field name="user_id"/>
                         </group>
                         <group>
@@ -23,6 +22,7 @@
                             <field name="create_date"/>
                             <field name="sent_date"/>
                             <field name="response_code"/>
+                            <field name="event_type"/>
                         </group>
                     </group>
                     <group string="Message">
@@ -45,9 +45,9 @@
                 <field name="create_date"/>
                 <field name="mobile"/>
                 <field name="partner_id"/>
-                <field name="lead_id"/>
                 <field name="message"/>
                 <field name="status"/>
+                <field name="event_type"/>
                 <field name="user_id"/>
             </list>
         </field>

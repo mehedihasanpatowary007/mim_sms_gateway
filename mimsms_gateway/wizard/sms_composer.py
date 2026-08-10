@@ -3,13 +3,37 @@ from odoo.exceptions import UserError
 from odoo.tools import html_sanitize
 import logging
 import re
+import ast
 
 _logger = logging.getLogger(__name__)
 
 
 class SmsComposer(models.TransientModel):
-    _name = 'sms.composer'
+    _name = 'mimsms.composer'
     _description = 'SMS Composer'
+
+    def _check_sms_user(self):
+        if not self.env.user.has_group('mimsms_gateway.group_sms_gateway_user'):
+            raise UserError(_('You do not have permission to send SMS messages.'))
+
+    def _get_recipient_records(self):
+        """Safely parse recipient IDs and enforce normal Odoo read access."""
+        if not self.res_model or self.res_model not in self.env:
+            raise UserError(_('The recipient model is invalid.'))
+        try:
+            record_ids = ast.literal_eval(self.res_ids or '[]')
+        except (ValueError, SyntaxError):
+            raise UserError(_('The recipient list is invalid.'))
+        if isinstance(record_ids, int):
+            record_ids = [record_ids]
+        if not isinstance(record_ids, (list, tuple)) or any(
+            not isinstance(record_id, int) or isinstance(record_id, bool)
+            for record_id in record_ids
+        ):
+            raise UserError(_('The recipient list is invalid.'))
+        records = self.env[self.res_model].browse(list(dict.fromkeys(record_ids))).exists()
+        records.check_access('read')
+        return records
 
     # Basic fields
     composition_mode1 = fields.Selection([
@@ -166,15 +190,31 @@ class SmsComposer(models.TransientModel):
                         return normalized
                 except:
                     continue
+        if hasattr(record, 'partner_id') and record.partner_id:
+            partner = record.partner_id.commercial_partner_id
+            return self._normalize_phone_number(partner.mobile or partner.phone)
         return False
+
+    def _get_history_links(self, record):
+        partner = record if record._name == 'res.partner' else getattr(record, 'partner_id', False)
+        return {
+            'partner_id': partner.commercial_partner_id.id if partner else False,
+            'res_model': record._name,
+            'res_id': record.id,
+            'event_type': 'manual',
+            'company_id': (
+                getattr(record, 'company_id', False).id
+                if getattr(record, 'company_id', False)
+                else self.env.company.id
+            ),
+        }
     
     @api.depends('res_model', 'res_ids')
     def _compute_recipient_info(self):
         for wizard in self:
             if wizard.res_model and wizard.res_ids:
                 try:
-                    record_ids = eval(wizard.res_ids)
-                    records = self.env[wizard.res_model].browse(record_ids)
+                    records = wizard._get_recipient_records()
                     wizard.recipient_count = len(records)
                     
                     # Get mobile numbers
@@ -200,8 +240,7 @@ class SmsComposer(models.TransientModel):
         for wizard in self:
             if wizard.res_model and wizard.res_ids:
                 try:
-                    record_ids = eval(wizard.res_ids)
-                    records = self.env[wizard.res_model].browse(record_ids)
+                    records = wizard._get_recipient_records()
                     first_record = records[0] if records else False
                     
                     if first_record:
@@ -329,6 +368,7 @@ class SmsComposer(models.TransientModel):
     def action_send_sms(self):
         """Send SMS to recipients"""
         self.ensure_one()
+        self._check_sms_user()
         
         _logger.info("=== Starting SMS Send Process ===")
         _logger.info(f"res_model: {self.res_model}")
@@ -356,9 +396,7 @@ class SmsComposer(models.TransientModel):
         
         # Get records
         try:
-            record_ids = eval(self.res_ids)
-            _logger.info(f"Parsed record IDs: {record_ids}")
-            records = self.env[self.res_model].browse(record_ids)
+            records = self._get_recipient_records()
             _logger.info(f"Found {len(records)} records")
         except Exception as e:
             _logger.error(f"Failed to parse records: {str(e)}")
@@ -408,19 +446,15 @@ class SmsComposer(models.TransientModel):
                 response = config.send_sms(data['mobile'], data['message'])
                 
                 # Create history
-                partner_id = data['record'].id if self.res_model == 'res.partner' else False
-                lead_id = data['record'].id if self.res_model == 'crm.lead' else False
-                
                 self.env['sms.history'].create_history(
                     mobile=data['mobile'],
                     message=data['message'],
-                    partner_id=partner_id,
-                    lead_id=lead_id,
                     template_id=self.template_id.id if self.template_id else False,
-                    response=response
+                    response=response,
+                    **self._get_history_links(data['record']),
                 )
                 
-                if response.get('statusCode') == '200':
+                if str(response.get('statusCode')) == '200':
                     success_count = 1
                     # Log success with highlight
                     self._log_sms_success(
@@ -465,19 +499,15 @@ class SmsComposer(models.TransientModel):
                 
                 # Create history for each
                 for data in sms_data:
-                    partner_id = data['record'].id if self.res_model == 'res.partner' else False
-                    lead_id = data['record'].id if self.res_model == 'crm.lead' else False
-                    
                     self.env['sms.history'].create_history(
                         mobile=data['mobile'],
                         message=data['message'],
-                        partner_id=partner_id,
-                        lead_id=lead_id,
                         template_id=self.template_id.id if self.template_id else False,
-                        response=response
+                        response=response,
+                        **self._get_history_links(data['record']),
                     )
                 
-                if response.get('statusCode') == '200':
+                if str(response.get('statusCode')) == '200':
                     success_count = len(sms_data)
                     # Log success with highlight
                     self._log_sms_success(
@@ -526,19 +556,15 @@ class SmsComposer(models.TransientModel):
                 
                 # Create history for each
                 for data in sms_data:
-                    partner_id = data['record'].id if self.res_model == 'res.partner' else False
-                    lead_id = data['record'].id if self.res_model == 'crm.lead' else False
-                    
                     self.env['sms.history'].create_history(
                         mobile=data['mobile'],
                         message=data['message'],
-                        partner_id=partner_id,
-                        lead_id=lead_id,
                         template_id=self.template_id.id if self.template_id else False,
-                        response=response
+                        response=response,
+                        **self._get_history_links(data['record']),
                     )
                 
-                if response.get('statusCode') == '200':
+                if str(response.get('statusCode')) == '200':
                     success_count = len(sms_data)
                     # Log success with highlight
                     self._log_sms_success(

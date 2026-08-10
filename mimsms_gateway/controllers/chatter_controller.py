@@ -1,74 +1,77 @@
-# -*- coding: utf-8 -*-
-from odoo import http
+import logging
+
+from odoo import http, _
+from odoo.exceptions import AccessError, UserError
 from odoo.http import request
 
-class ContactChatterController(http.Controller):
-    
-    @http.route('/chatter_custom/send_sms', type='json', auth='user')
+
+_logger = logging.getLogger(__name__)
+
+
+class MimsmsChatterController(http.Controller):
+
+    @staticmethod
+    def _supports_sms(model_name):
+        if model_name not in request.env:
+            return False
+        if model_name == 'res.partner':
+            return True
+        partner_field = request.env[model_name]._fields.get('partner_id')
+        return bool(partner_field and partner_field.type == 'many2one' and partner_field.comodel_name == 'res.partner')
+
+    @http.route('/mimsms_gateway/chatter/availability', type='json', auth='user')
+    def sms_availability(self, model, res_id=None):
+        available = (
+            request.env.user.has_group('mimsms_gateway.group_sms_gateway_user')
+            and self._supports_sms(model)
+            and bool(res_id)
+        )
+        if available:
+            try:
+                record = request.env[model].browse(int(res_id)).exists()
+                record.check_access('read')
+                available = bool(record)
+            except (AccessError, ValueError, TypeError):
+                available = False
+        return {'available': available}
+
+    @http.route('/mimsms_gateway/chatter/send', type='json', auth='user')
     def send_sms_action(self, model, res_id):
-        """Function to open SMS composer for contact or CRM lead"""
         try:
-            record = request.env[model].browse(int(res_id))
-            
-            if not record.exists():
-                return {"error": True, "message": "Record not found"}
-            
-            # Get phone number based on model
-            phone_number = False
-            number_field_name = 'phone'
-            
-            if model == 'res.partner':
-                # For contacts/partners - check if mobile field exists
-                if hasattr(record, 'mobile') and record.mobile:
-                    phone_number = record.mobile
-                    number_field_name = 'mobile'
-                elif record.phone:
-                    phone_number = record.phone
-                    number_field_name = 'phone'
-                
-            elif model == 'crm.lead':
-                # For CRM leads - check phone field
-                if record.phone:
-                    phone_number = record.phone
-                    number_field_name = 'phone'
-                # If lead doesn't have phone, check the linked partner
-                elif record.partner_id:
-                    if hasattr(record.partner_id, 'mobile') and record.partner_id.mobile:
-                        phone_number = record.partner_id.mobile
-                        number_field_name = 'mobile'
-                    elif record.partner_id.phone:
-                        phone_number = record.partner_id.phone
-                        number_field_name = 'phone'
-            
-            if not phone_number:
-                return {
-                    "error": True,
-                    "message": "No phone number found for this record"
+            if not request.env.user.has_group('mimsms_gateway.group_sms_gateway_user'):
+                raise AccessError(_('You do not have permission to send SMS messages.'))
+            if not self._supports_sms(model):
+                raise UserError(_('This document does not have a related customer.'))
+
+            record = request.env[model].browse(int(res_id)).exists()
+            if not record:
+                raise UserError(_('The document was not found.'))
+            record.check_access('read')
+
+            if model == 'account.move' and record.move_type == 'out_invoice':
+                action = record.action_send_invoice_sms()
+            elif model == 'stock.picking' and record.picking_type_code == 'outgoing':
+                action = record.action_send_delivery_sms()
+            else:
+                partner = record if model == 'res.partner' else record.partner_id.commercial_partner_id
+                if not (partner.mobile or partner.phone):
+                    raise UserError(_('No mobile or phone number was found for this customer.'))
+                action = {
+                    'name': _('Send SMS'),
+                    'type': 'ir.actions.act_window',
+                    'res_model': 'mimsms.composer',
+                    'view_mode': 'form',
+                    'views': [[False, 'form']],
+                    'target': 'new',
+                    'context': {
+                        'default_res_model': model,
+                        'default_res_ids': str(record.ids),
+                        'default_composition_mode1': 'single',
+                    },
                 }
-            
-            # Prepare SMS composer action
-            action = {
-                "type": "ir.actions.act_window",
-                "name": "Send SMS",
-                "res_model": "sms.composer",
-                "view_mode": "form",
-                "views": [[False, "form"]],
-                "target": "new",
-                "context": {
-                    "default_composition_mode": "comment",
-                    "default_res_model": model,
-                    "default_res_id": int(res_id),
-                    "default_number_field_name": number_field_name,
-                    "active_model": model,
-                    "active_id": int(res_id),
-                    "active_ids": [int(res_id)],
-                }
-            }
-            
-            return {"success": True, "action": action}
-            
-        except Exception as e:
-            import logging
-            _logger = logging.getLogger(__name__)
-            _logger.error(f"Error opening SMS composer: {str(e)}")
-            return {"error": True, "message": f"Error: {str(e)}"}
+            return {'success': True, 'action': action}
+        except (AccessError, UserError) as error:
+            return {'error': True, 'message': str(error)}
+        except Exception:
+            _logger.exception('Could not open MiMSMS composer from chatter')
+            return {'error': True, 'message': _('Could not open the SMS composer.')}

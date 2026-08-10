@@ -80,19 +80,17 @@ class SmsTemplate(models.Model):
             return ''
             
         try:
-            # Use Odoo's standard template rendering with 'object' variable
-            # This supports ${object.field_name} syntax
-            rendered = self.env['mail.render.mixin']._render_template(
+            # Accept the user-friendly {{field}} syntax and normalize it to
+            # Odoo's ${object.field} syntax before using the render engine.
+            import re
+            body = re.sub(
+                r'\{\{\s*(?:object\.)?([a-zA-Z0-9_.]+)\s*\}\}',
+                lambda match: '${object.%s}' % match.group(1),
                 body,
-                record._name,
-                record.ids,
-                post_process=True
-            )[record.id]
-            
-            # Convert to plain text if HTML
-            if rendered and '<' in rendered:
-                rendered = html2plaintext(rendered)
-            
+            )
+            # SMS templates deliberately support field substitution only. This
+            # keeps rendering predictable and avoids executing expressions.
+            rendered = self._simple_render(body, record)
             return rendered.strip() if rendered else ''
             
         except Exception as e:

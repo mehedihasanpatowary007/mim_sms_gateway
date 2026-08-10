@@ -3,7 +3,7 @@
     <!-- SMS Composer Wizard Form View -->
     <record id="view_sms_composer_form" model="ir.ui.view">
         <field name="name">sms.composer.form</field>
-        <field name="model">sms.composer</field>
+        <field name="model">mimsms.composer</field>
         <field name="arch" type="xml">
             <form string="Send SMS">
                 <sheet>
@@ -44,7 +44,7 @@
                                    required="1"/>
                             <div class="text-muted mt-2">
                                 <small>
-                                    <strong>Tip:</strong> For dynamic content in templates, use variables like {object.name}, {object.phone}, etc.
+                                    <strong>Tip:</strong> For dynamic content in templates, use variables like {{name}} or {{partner_id.name}}.
                                 </small>
                             </div>
                         </page>
@@ -95,7 +95,7 @@
     <!-- Single Action - Only for Form View -->
     <!-- <record id="action_sms_composer" model="ir.actions.act_window">
         <field name="name">Send SMS</field>
-        <field name="res_model">sms.composer</field>
+        <field name="res_model">mimsms.composer</field>
         <field name="view_mode">form</field>
         <field name="target">new</field>
         <field name="binding_model_id" ref="base.model_res_partner"/>

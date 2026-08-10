@@ -78,20 +78,18 @@
                                     </div>
 
                                     <div class="mt-2">
-                                        <strong>For Leads (crm.lead):</strong><br/>
-                                        <code>{{name}}</code> - Lead/Opportunity name<br/>
-                                        <code>{{partner_name}}</code> - Customer name<br/>
-                                        <code>{{email_from}}</code> - Email<br/>
-                                        <code>{{phone}}</code> - Phone number<br/>
-                                        <code>{{user_id.name}}</code> - Salesperson name<br/>
+                                        <strong>For Customer Invoices (account.move):</strong><br/>
+                                        <code>{{name}}</code> - Invoice reference<br/>
+                                        <code>{{partner_id.name}}</code> - Customer name<br/>
+                                        <code>{{amount_total}}</code> - Total amount<br/>
+                                        <code>{{invoice_date_due}}</code> - Due date<br/>
                                     </div>
 
                                     <div class="mt-2">
-                                        <strong>For Sales Orders (sale.order):</strong><br/>
-                                        <code>{{name}}</code> - Order reference<br/>
+                                        <strong>For Deliveries (stock.picking):</strong><br/>
+                                        <code>{{name}}</code> - Delivery reference<br/>
                                         <code>{{partner_id.name}}</code> - Customer name<br/>
-                                        <code>{{amount_total}}</code> - Total amount<br/>
-                                        <code>{{date_order}}</code> - Order date<br/>
+                                        <code>{{origin}}</code> - Source order<br/>
                                     </div>
 
                                     <div class="mt-3">

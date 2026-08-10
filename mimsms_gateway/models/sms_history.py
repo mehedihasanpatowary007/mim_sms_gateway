@@ -2,6 +2,7 @@
 # FILE: models/sms_history.py
 # ============================================================================
 from odoo import api, fields, models, _
+from odoo.exceptions import UserError
 
 
 class SmsHistory(models.Model):
@@ -15,7 +16,8 @@ class SmsHistory(models.Model):
     status = fields.Selection([
         ('draft', 'Draft'),
         ('sent', 'Sent'),
-        ('failed', 'Failed')
+        ('failed', 'Failed'),
+        ('skipped', 'Skipped'),
     ], string='Status', default='draft', required=True)
     
     response_code = fields.Char(string='Response Code')
@@ -23,7 +25,6 @@ class SmsHistory(models.Model):
     api_response = fields.Text(string='Full API Response')
     
     partner_id = fields.Many2one('res.partner', string='Contact', ondelete='set null')
-    lead_id = fields.Many2one('crm.lead', string='Lead/Opportunity', ondelete='set null')
     template_id = fields.Many2one('sms.template', string='Template Used', ondelete='set null')
     user_id = fields.Many2one('res.users', string='Sent By', default=lambda self: self.env.user)
     
@@ -31,6 +32,15 @@ class SmsHistory(models.Model):
     error_message = fields.Text(string='Error Message')
     company_id = fields.Many2one('res.company', string='Company', 
                                 default=lambda self: self.env.company)
+    res_model = fields.Char(string='Source Model', index=True)
+    res_id = fields.Integer(string='Source Record ID', index=True)
+    event_type = fields.Selection([
+        ('manual', 'Manual'),
+        ('payment', 'Payment Received'),
+        ('overdue', 'Invoice Overdue'),
+        ('monthly', 'Monthly Closing'),
+    ], default='manual', required=True, index=True)
+    event_key = fields.Char(string='Event Key', index=True, copy=False)
     
     def name_get(self):
         result = []
@@ -40,16 +50,16 @@ class SmsHistory(models.Model):
         return result
     
     @api.model
-    def create_history(self, mobile, message, partner_id=None, lead_id=None, 
-                      template_id=None, status='draft', response=None):
+    def create_history(self, mobile, message, partner_id=None,
+                      template_id=None, status='draft', response=None, **extra_vals):
         """Create SMS history record"""
         vals = {
             'mobile': mobile,
             'message': message,
             'partner_id': partner_id,
-            'lead_id': lead_id,
             'template_id': template_id,
             'status': status,
+            **extra_vals,
         }
         
         if response:
@@ -57,10 +67,10 @@ class SmsHistory(models.Model):
                 'response_code': response.get('statusCode'),
                 'response_message': response.get('statusMessage'),
                 'api_response': str(response),
-                'sent_date': fields.Datetime.now() if response.get('statusCode') == '200' else False,
+                'sent_date': fields.Datetime.now() if str(response.get('statusCode')) == '200' else False,
             })
             
-            if response.get('statusCode') == '200':
+            if str(response.get('statusCode')) == '200':
                 vals['status'] = 'sent'
             else:
                 vals['status'] = 'failed'
@@ -71,22 +81,25 @@ class SmsHistory(models.Model):
     def action_resend(self):
         """Resend failed SMS"""
         self.ensure_one()
+        self.check_access('read')
+        if not self.env.user.has_group('mimsms_gateway.group_sms_gateway_user'):
+            raise UserError(_('You do not have permission to send SMS messages.'))
         
         config = self.env['mimsms.config'].get_active_config()
         
         try:
             response = config.send_sms(self.mobile, self.message)
             
-            self.write({
-                'status': 'sent' if response.get('statusCode') == '200' else 'failed',
+            self.sudo().write({
+                'status': 'sent' if str(response.get('statusCode')) == '200' else 'failed',
                 'response_code': response.get('statusCode'),
                 'response_message': response.get('statusMessage'),
                 'api_response': str(response),
-                'sent_date': fields.Datetime.now() if response.get('statusCode') == '200' else False,
-                'error_message': response.get('statusMessage') if response.get('statusCode') != '200' else False,
+                'sent_date': fields.Datetime.now() if str(response.get('statusCode')) == '200' else False,
+                'error_message': response.get('statusMessage') if str(response.get('statusCode')) != '200' else False,
             })
             
-            if response.get('statusCode') == '200':
+            if str(response.get('statusCode')) == '200':
                 return {
                     'type': 'ir.actions.client',
                     'tag': 'display_notification',

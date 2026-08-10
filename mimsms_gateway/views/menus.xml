@@ -4,6 +4,7 @@
     <menuitem id="menu_mimsms_root"
               name="MiMSMS"
               sequence="90"
+              groups="mimsms_gateway.group_sms_gateway_user"
               web_icon="mimsms_gateway,static/description/icon.png"/>
 
     <!-- SMS Menu -->
@@ -31,7 +32,7 @@
               name="Configuration"
               parent="menu_mimsms_root"
               sequence="100"
-              groups="base.group_system"/>
+              groups="mimsms_gateway.group_sms_gateway_manager"/>
 
     <!-- MiMSMS Settings Menu Item -->
     <menuitem id="menu_mimsms_config"
@@ -39,5 +40,5 @@
               parent="menu_sms_configuration"
               action="action_mimsms_config"
               sequence="10"
-              groups="base.group_system"/>
+              groups="mimsms_gateway.group_sms_gateway_manager"/>
 </odoo>
