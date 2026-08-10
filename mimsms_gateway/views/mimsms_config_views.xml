@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- MiMSMS Configuration Form View -->
+    <record id="view_mimsms_config_form" model="ir.ui.view">
+        <field name="name">mimsms.config.form</field>
+        <field name="model">mimsms.config</field>
+        <field name="arch" type="xml">
+            <form string="MiMSMS Configuration">
+                <header>
+                    <button name="action_check_balance" 
+                            string="Check Balance" 
+                            type="object" 
+                            class="oe_highlight"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button class="oe_stat_button" 
+                                type="object" 
+                                name="action_check_balance" 
+                                icon="fa-money">
+                            <div class="o_field_widget o_stat_info">
+                                <span class="o_stat_value">
+                                    ৳<field name="balance" nolabel="1"/>
+                                </span>
+                                <span class="o_stat_text">Balance</span>
+                            </div>
+                        </button>
+                    </div>
+                    
+                    <widget name="web_ribbon" title="Inactive" bg_color="text-bg-danger" invisible="active"/>
+                    
+                    <div class="oe_title">
+                        <label for="username" class="oe_edit_only"/>
+                        <h1>
+                            <field name="username" placeholder="your-email@example.com"/>
+                        </h1>
+                    </div>
+                    
+                    <group>
+                        <group string="API Credentials">
+                            <field name="apikey" password="True"/>
+                            <field name="sender_id"/>
+                            <field name="base_url"/>
+                        </group>
+                        <group string="Status">
+                            <field name="active" widget="boolean_toggle"/>
+                            <field name="company_id" 
+                                   groups="base.group_multi_company" 
+                                   options="{'no_create': True}"/>
+                            <field name="last_balance_check" readonly="1"/>
+                        </group>
+                    </group>
+                    
+                    <notebook>
+                        <page string="Information" name="info">
+                            <group>
+                                <group string="Balance Information">
+                                    <field name="balance" readonly="1"/>
+                                    <field name="last_balance_check" readonly="1"/>
+                                </group>
+                            </group>
+                            <group>
+                                <div class="alert alert-info mt16" role="alert">
+                                    <p><strong>📱 How to use MiMSMS:</strong></p>
+                                    <ul class="mb-0">
+                                        <li>Click "Check Balance" button to verify your SMS credits</li>
+                                        <li>Navigate to SMS menu to send messages to contacts or leads</li>
+                                        <li>View SMS history to track sent messages</li>
+                                        <li>Use SMS templates for quick message composition</li>
+                                    </ul>
+                                </div>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- MiMSMS Configuration Tree View -->
+    <record id="view_mimsms_config_list" model="ir.ui.view">
+        <field name="name">mimsms.config.list</field>
+        <field name="model">mimsms.config</field>
+        <field name="arch" type="xml">
+            <list string="MiMSMS Configurations" 
+                  decoration-muted="not active">
+                <field name="username"/>
+                <field name="sender_id"/>
+                <field name="balance"/>
+                <field name="last_balance_check" optional="show"/>
+                <field name="active" widget="boolean_toggle"/>
+                <field name="company_id" 
+                       groups="base.group_multi_company" 
+                       optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- MiMSMS Configuration Action -->
+    <record id="action_mimsms_config" model="ir.actions.act_window">
+        <field name="name">MiMSMS Configuration</field>
+        <field name="res_model">mimsms.config</field>
+        <field name="view_mode">list,form</field>
+        <field name="context">{}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Configure your MiMSMS API settings
+            </p>
+            <p>
+                Add your MiMSMS credentials to start sending SMS messages.
+            </p>
+        </field>
+    </record>
+</odoo>

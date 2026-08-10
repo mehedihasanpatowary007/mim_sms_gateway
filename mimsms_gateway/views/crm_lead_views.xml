@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Add SMS Button to CRM Lead Form -->
+    <record id="view_crm_lead_form_inherit_sms" model="ir.ui.view">
+        <field name="name">crm.lead.form.inherit.sms</field>
+        <field name="model">crm.lead</field>
+        <field name="inherit_id" ref="crm.crm_lead_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button class="oe_stat_button" 
+                        type="object" 
+                        name="action_send_sms" 
+                        icon="fa-comment-o">
+                    <div class="o_stat_info">
+                        <span class="o_stat_text">Send SMS</span>
+                    </div>
+                </button>
+                <button class="oe_stat_button" 
+                        type="object" 
+                        name="action_view_sms_history" 
+                        icon="fa-history">
+                    <field name="sms_count" widget="statinfo" string="SMS"/>
+                </button>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Bulk SMS Server Action -->
+    <record id="action_send_bulk_sms_crm" model="ir.actions.server">
+        <field name="name">Send SMS</field>
+        <field name="model_id" ref="crm.model_crm_lead"/>
+        <field name="binding_model_id" ref="crm.model_crm_lead"/>
+        <field name="binding_view_types">list</field>
+        <field name="state">code</field>
+        <field name="code"><![CDATA[
+if records:
+    composition_mode = 'bulk' if len(records) > 1 else 'single'
+    action = {
+        'name': 'Send SMS',
+        'type': 'ir.actions.act_window',
+        'res_model': 'sms.composer',
+        'view_mode': 'form',
+        'target': 'new',
+        'context': {
+            'default_res_model': 'crm.lead',
+            'default_res_ids': str(records.ids),
+            'default_composition_mode': composition_mode,
+        }
+    }
+]]></field>
+    </record>
+</odoo>

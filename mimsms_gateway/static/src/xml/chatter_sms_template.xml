@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates id="template" xml:space="preserve">
+    <t t-name="mail.Chatter" t-inherit="mail.Chatter" t-inherit-mode="extension">
+        <xpath expr="//button[hasclass('o-mail-Chatter-activity')]" position="after">
+            <!-- Show button for both res.partner and crm.lead -->
+            <button type="button"
+                    class="btn btn-secondary text-nowrap o_send_sms_btn ms-1"
+                    t-att-class="{ 'my-2': !props.compactHeight }"
+                    t-if="props.threadModel === 'res.partner' or props.threadModel === 'crm.lead'"
+                    t-on-click="onSendSMS"
+                    title="Send SMS">
+                <i class="fa fa-mobile me-1"/>
+                <span>Send SMS</span>
+            </button>
+        </xpath>
+    </t>
+</templates>

@@ -1,0 +1,7 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_mimsms_config_user,mimsms.config.user,model_mimsms_config,base.group_user,1,1,1,0
+access_sms_template_user,sms.template.user,model_sms_template,base.group_user,1,1,1,0
+access_sms_template_manager,sms.template.manager,model_sms_template,base.group_system,1,1,1,1
+access_sms_history_user,sms.history.user,model_sms_history,base.group_user,1,0,0,0
+access_sms_history_manager,sms.history.manager,model_sms_history,base.group_system,1,1,1,1
+access_sms_composer,sms.composer,model_sms_composer,base.group_user,1,1,1,1

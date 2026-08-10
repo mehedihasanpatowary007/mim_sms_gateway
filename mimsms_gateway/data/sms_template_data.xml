@@ -1,0 +1,77 @@
+<odoo>
+    <data noupdate="1">
+
+        <!-- Contact Templates -->
+        <record id="sms_template_contact_welcome" model="sms.template">
+            <field name="name">Welcome Message - Contact</field>
+            <field name="model_id" ref="base.model_res_partner"/>
+            <field name="body">Hello ${object.name}, Welcome to our services! We're excited to have you with us. For any queries, feel free to contact us.</field>
+            <field name="active">True</field>
+        </record>
+
+        <record id="sms_template_contact_followup" model="sms.template">
+            <field name="name">Follow-up Message - Contact</field>
+            <field name="model_id" ref="base.model_res_partner"/>
+            <field name="body">Hi ${object.name}, Just following up on our recent conversation. Let us know if you need any assistance. Thanks!</field>
+            <field name="active">True</field>
+        </record>
+
+        <record id="sms_template_contact_birthday" model="sms.template">
+            <field name="name">Birthday Wishes - Contact</field>
+            <field name="model_id" ref="base.model_res_partner"/>
+            <field name="body">Happy Birthday ${object.name}! 🎉 Wishing you a wonderful day filled with joy and happiness!</field>
+            <field name="active">True</field>
+        </record>
+
+        <record id="sms_template_contact_thank_you" model="sms.template">
+            <field name="name">Thank You Message - Contact</field>
+            <field name="model_id" ref="base.model_res_partner"/>
+            <field name="body">Dear ${object.name}, Thank you for choosing our services. We appreciate your trust and look forward to serving you!</field>
+            <field name="active">True</field>
+        </record>
+
+        <!-- CRM Templates -->
+        <record id="sms_template_crm_welcome" model="sms.template">
+            <field name="name">Welcome Message - Lead</field>
+            <field name="model_id" ref="crm.model_crm_lead"/>
+            <field name="body">Hello ${object.name}, Thank you for your interest! Our team will contact you shortly to discuss your requirements.</field>
+            <field name="active">True</field>
+        </record>
+
+        <record id="sms_template_crm_followup" model="sms.template">
+            <field name="name">Follow-up - Lead</field>
+            <field name="model_id" ref="crm.model_crm_lead"/>
+            <field name="body">Hi ${object.name}, Following up on your inquiry about ${object.name}. Are you available for a quick call? Let us know!</field>
+            <field name="active">True</field>
+        </record>
+
+        <record id="sms_template_crm_meeting" model="sms.template">
+            <field name="name">Meeting Reminder - Lead</field>
+            <field name="model_id" ref="crm.model_crm_lead"/>
+            <field name="body">Hi ${object.name}, This is a reminder about our meeting. Looking forward to discussing your project with you!</field>
+            <field name="active">True</field>
+        </record>
+
+        <record id="sms_template_crm_won" model="sms.template">
+            <field name="name">Opportunity Won - Lead</field>
+            <field name="model_id" ref="crm.model_crm_lead"/>
+            <field name="body">Congratulations ${object.name}! We're excited to move forward with your project. Our team will be in touch soon!</field>
+            <field name="active">True</field>
+        </record>
+
+        <record id="sms_template_crm_quote" model="sms.template">
+            <field name="name">Quotation Sent - Lead</field>
+            <field name="model_id" ref="crm.model_crm_lead"/>
+            <field name="body">Hi ${object.name}, We've sent you a quotation for ${object.name}. Please review and let us know if you have any questions.</field>
+            <field name="active">True</field>
+        </record>
+
+        <record id="sms_template_crm_promotional" model="sms.template">
+            <field name="name">Promotional Offer - Lead</field>
+            <field name="model_id" ref="crm.model_crm_lead"/>
+            <field name="body">Hi ${object.name}, Special offer just for you! Get 20% off on our services. Valid till month end. Contact us now!</field>
+            <field name="active">True</field>
+        </record>
+
+    </data>
+</odoo>

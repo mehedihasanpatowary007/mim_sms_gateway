@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- History Form View -->
+    <record id="view_sms_history_form" model="ir.ui.view">
+        <field name="name">sms.history.form</field>
+        <field name="model">sms.history</field>
+        <field name="arch" type="xml">
+            <form string="SMS History" create="false">
+                <header>
+                    <button name="action_resend" string="Resend" type="object" invisible="status == 'sent'"/>
+                    <field name="status" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="mobile"/>
+                            <field name="partner_id"/>
+                            <field name="lead_id"/>
+                            <field name="user_id"/>
+                        </group>
+                        <group>
+                            <field name="template_id"/>
+                            <field name="create_date"/>
+                            <field name="sent_date"/>
+                            <field name="response_code"/>
+                        </group>
+                    </group>
+                    <group string="Message">
+                        <field name="message" widget="text" nolabel="1"/>
+                    </group>
+                    <group string="Response" invisible="not response_message">
+                        <field name="response_message" nolabel="1"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- History Tree View -->
+    <record id="view_sms_history_list" model="ir.ui.view">
+        <field name="name">sms.history.list</field>
+        <field name="model">sms.history</field>
+        <field name="arch" type="xml">
+            <list string="SMS History" create="false">
+                <field name="create_date"/>
+                <field name="mobile"/>
+                <field name="partner_id"/>
+                <field name="lead_id"/>
+                <field name="message"/>
+                <field name="status"/>
+                <field name="user_id"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- History Action -->
+    <record id="action_sms_history" model="ir.actions.act_window">
+        <field name="name">SMS History</field>
+        <field name="res_model">sms.history</field>
+        <field name="view_mode">list,form</field>
+    </record>
+</odoo>

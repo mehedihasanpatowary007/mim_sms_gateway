@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    
+    <record id="view_partner_form_send_sms" model="ir.ui.view">
+        <field name="name">res.partner.form.send.sms</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <!-- Add button in header -->
+            <xpath expr="//sheet" position="before">
+                <header>
+                    <button name="action_send_sms" 
+                            string="Send SMS" 
+                            type="object"
+                            class="btn-primary"
+                            icon="fa-mobile"/>
+                </header>
+            </xpath>
+        </field>
+    </record>
+    
+</odoo>

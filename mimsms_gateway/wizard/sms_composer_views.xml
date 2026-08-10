@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- SMS Composer Wizard Form View -->
+    <record id="view_sms_composer_form" model="ir.ui.view">
+        <field name="name">sms.composer.form</field>
+        <field name="model">sms.composer</field>
+        <field name="arch" type="xml">
+            <form string="Send SMS">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="composition_mode1" widget="radio"/>
+                            <field name="template_id" 
+                                   invisible="composition_mode1 != 'template'"
+                                   options="{'no_create': True}"
+                                   domain="[('model', '=', res_model)]"/>
+                        </group>
+                        <group>
+                            <field name="res_model" invisible="1"/>
+                            <field name="res_ids" invisible="1"/>
+                            <field name="recipient_count" readonly="1"/>
+                            <label for="recipient_count" string="Recipients"/>
+                        </group>
+                    </group>
+                    
+                    <group>
+                        <div class="alert alert-info" role="alert" invisible="composition_mode1 not in ['single', 'mass']">
+                            <strong>Single/Mass SMS:</strong> Send individual SMS to each recipient with personalized content
+                        </div>
+                        <div class="alert alert-info" role="alert" invisible="composition_mode1 != 'bulk'">
+                            <strong>Bulk SMS:</strong> Send the same message to all recipients at once
+                        </div>
+                        <div class="alert alert-info" role="alert" invisible="composition_mode1 != 'template'">
+                            <strong>Template Mode:</strong> Use a saved template with dynamic fields
+                        </div>
+                    </group>
+                    
+                    <notebook>
+                        <page string="Message" name="message">
+                            <field name="message" 
+                                   widget="text" 
+                                   placeholder="Type your SMS message here..."
+                                   nolabel="1"
+                                   required="1"/>
+                            <div class="text-muted mt-2">
+                                <small>
+                                    <strong>Tip:</strong> For dynamic content in templates, use variables like {object.name}, {object.phone}, etc.
+                                </small>
+                            </div>
+                        </page>
+                        
+                        <page string="Recipients" name="recipients">
+                            <field name="recipient_info" 
+                                   widget="text" 
+                                   readonly="1"
+                                   nolabel="1"
+                                   placeholder="No recipients with valid mobile numbers found"/>
+                        </page>
+                        
+                        <page string="Preview" name="preview">
+                            <group>
+                                <group>
+                                    <field name="preview_mobile" readonly="1"/>
+                                </group>
+                                <group>
+                                    <label for="preview_message" string="Message Preview"/>
+                                </group>
+                            </group>
+                            <field name="preview_message" 
+                                   widget="text" 
+                                   readonly="1"
+                                   nolabel="1"
+                                   placeholder="Preview will be shown here"/>
+                            <div class="text-muted mt-2">
+                                <small>This is how the message will appear for the first recipient.</small>
+                            </div>
+                        </page>
+                    </notebook>
+                </sheet>
+                <footer>
+                    <button string="Send SMS" 
+                            name="action_send_sms" 
+                            type="object" 
+                            class="btn-primary"
+                            data-hotkey="s"/>
+                    <button string="Cancel" 
+                            class="btn-secondary" 
+                            special="cancel"
+                            data-hotkey="z"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Single Action - Only for Form View -->
+    <!-- <record id="action_sms_composer" model="ir.actions.act_window">
+        <field name="name">Send SMS</field>
+        <field name="res_model">sms.composer</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="binding_model_id" ref="base.model_res_partner"/>
+        <field name="binding_view_types">form</field>
+    </record> -->
+</odoo>

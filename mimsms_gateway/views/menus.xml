@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Main Menu -->
+    <menuitem id="menu_mimsms_root"
+              name="MiMSMS"
+              sequence="90"
+              web_icon="mimsms_gateway,static/description/icon.png"/>
+
+    <!-- SMS Menu -->
+    <menuitem id="menu_sms"
+              name="SMS"
+              parent="menu_mimsms_root"
+              sequence="10"/>
+
+    <!-- SMS History Menu Item -->
+    <menuitem id="menu_sms_history"
+              name="SMS History"
+              parent="menu_sms"
+              action="action_sms_history"
+              sequence="10"/>
+
+    <!-- SMS Templates Menu Item -->
+    <menuitem id="menu_sms_template"
+              name="SMS Templates"
+              parent="menu_sms"
+              action="action_sms_template"
+              sequence="20"/>
+
+    <!-- Configuration Menu -->
+    <menuitem id="menu_sms_configuration"
+              name="Configuration"
+              parent="menu_mimsms_root"
+              sequence="100"
+              groups="base.group_system"/>
+
+    <!-- MiMSMS Settings Menu Item -->
+    <menuitem id="menu_mimsms_config"
+              name="MiMSMS Settings"
+              parent="menu_sms_configuration"
+              action="action_mimsms_config"
+              sequence="10"
+              groups="base.group_system"/>
+</odoo>
