@@ -95,9 +95,20 @@ class MimsmsConfig(models.Model):
             )
             response.raise_for_status()
             result = response.json()
-            
-            if result.get('statusCode') == "200":
-                self.balance = float(result.get('responseResult', 0))
+            status_code = result.get('statusCode', result.get('status_code'))
+            is_success = str(status_code) == '200' or result.get('success') is True
+
+            if is_success:
+                balance_value = result.get('responseResult', result.get('balance'))
+                if isinstance(balance_value, dict):
+                    balance_value = balance_value.get(
+                        'balance', balance_value.get('currentBalance')
+                    )
+                if balance_value in (None, ''):
+                    raise UserError(_(
+                        'MiMSMS accepted the request but did not return a balance value.'
+                    ))
+                self.balance = float(balance_value)
                 self.last_balance_check = fields.Datetime.now()
                 return {
                     'type': 'ir.actions.client',
@@ -110,11 +121,21 @@ class MimsmsConfig(models.Model):
                     }
                 }
             else:
-                raise UserError(_('Failed to check balance: %s') % result.get('statusMessage'))
+                error_message = (
+                    result.get('statusMessage')
+                    or result.get('message')
+                    or result.get('error')
+                    or _('Unexpected response from MiMSMS (status: %s)') % (status_code or _('unknown'))
+                )
+                _logger.warning('MiMSMS balance check rejected: %s', result)
+                raise UserError(_('Failed to check balance: %s') % error_message)
                 
         except requests.exceptions.RequestException as e:
             _logger.error(f"Balance check failed: {str(e)}")
             raise UserError(_('Failed to connect to MiMSMS API: %s') % str(e))
+        except (TypeError, ValueError) as e:
+            _logger.error('Invalid MiMSMS balance response: %s', str(e))
+            raise UserError(_('MiMSMS returned an invalid balance value.'))
     
     @api.private
     def send_sms(self, mobile, message, transaction_type='T'):
