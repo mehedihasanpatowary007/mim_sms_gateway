@@ -9,7 +9,7 @@ import { onWillStart, useState } from "@odoo/owl";
 patch(Chatter.prototype, {
     setup() {
         super.setup(...arguments);
-        this.smsGateway = useState({ available: false });
+        this.smsGateway = useState({ available: false, opening: false });
         onWillStart(async () => {
             const result = await rpc("/mimsms_gateway/chatter/availability", {
                 model: this.props.threadModel,
@@ -20,18 +20,26 @@ patch(Chatter.prototype, {
     },
 
     async onMimsmsSendSms() {
-        const result = await rpc("/mimsms_gateway/chatter/send", {
-            model: this.props.threadModel,
-            res_id: this.props.threadId,
-        });
-        if (result?.error) {
-            this.env.services.notification.add(result.message || _t("Unable to open SMS composer"), {
-                type: "danger",
-            });
+        if (this.smsGateway.opening) {
             return;
         }
-        if (result?.action) {
-            await this.env.services.action.doAction(result.action);
+        this.smsGateway.opening = true;
+        try {
+            const result = await rpc("/mimsms_gateway/chatter/send", {
+                model: this.props.threadModel,
+                res_id: this.props.threadId,
+            });
+            if (result?.error) {
+                this.env.services.notification.add(result.message || _t("Unable to open SMS composer"), {
+                    type: "danger",
+                });
+                return;
+            }
+            if (result?.action) {
+                await this.env.services.action.doAction(result.action);
+            }
+        } finally {
+            this.smsGateway.opening = false;
         }
     },
 });

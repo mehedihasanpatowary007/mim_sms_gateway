@@ -5,9 +5,9 @@
         <field name="name">sms.history.form</field>
         <field name="model">sms.history</field>
         <field name="arch" type="xml">
-            <form string="SMS History" create="false">
+            <form string="SMS History" create="false" class="o_mimsms_history">
                 <header>
-                    <button name="action_resend" string="Resend" type="object" invisible="status == 'sent'"/>
+                    <button name="action_resend" string="Resend" type="object" class="btn-primary" icon="fa-repeat" invisible="status == 'sent'"/>
                     <field name="status" widget="statusbar"/>
                 </header>
                 <sheet>
@@ -41,7 +41,10 @@
         <field name="name">sms.history.list</field>
         <field name="model">sms.history</field>
         <field name="arch" type="xml">
-            <list string="SMS History" create="false">
+            <list string="SMS History" create="false"
+                  decoration-success="status == 'sent'"
+                  decoration-danger="status == 'failed'"
+                  decoration-muted="status == 'skipped'">
                 <field name="create_date"/>
                 <field name="mobile"/>
                 <field name="partner_id"/>

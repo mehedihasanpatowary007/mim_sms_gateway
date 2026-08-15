@@ -1,0 +1,68 @@
+.o_mimsms_composer {
+    .o_form_sheet {
+        max-width: 920px;
+    }
+
+    .o_mimsms_composer_header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem 1.25rem;
+        margin-bottom: 1.25rem;
+        border: 1px solid rgba(113, 75, 103, 0.16);
+        border-radius: 0.75rem;
+        background: linear-gradient(135deg, rgba(113, 75, 103, 0.08), rgba(113, 75, 103, 0.02));
+    }
+
+    .o_mimsms_composer_icon {
+        display: grid;
+        place-items: center;
+        width: 3rem;
+        height: 3rem;
+        flex: 0 0 3rem;
+        border-radius: 50%;
+        color: white;
+        background: var(--o-brand-primary);
+        font-size: 1.5rem;
+    }
+
+    .o_mimsms_composer_options {
+        padding: 0.75rem 1rem;
+        border-radius: 0.5rem;
+        background: var(--o-view-background-color, #fff);
+    }
+
+    .o_mimsms_mode_hint {
+        width: 100%;
+        margin-bottom: 0.75rem;
+        border: 0;
+        border-left: 4px solid var(--o-brand-primary);
+    }
+
+    .o_mimsms_composer_notebook {
+        margin-top: 0.5rem;
+
+        textarea {
+            min-height: 9rem;
+            line-height: 1.55;
+        }
+    }
+
+    .o_mimsms_send_button {
+        min-width: 8rem;
+    }
+}
+
+.o_mimsms_config {
+    .o_mimsms_help {
+        border: 0;
+        border-left: 4px solid var(--o-brand-primary);
+    }
+}
+
+.o_mimsms_history {
+    textarea {
+        min-height: 7rem;
+        line-height: 1.5;
+    }
+}

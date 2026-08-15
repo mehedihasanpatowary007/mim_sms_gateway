@@ -53,15 +53,16 @@ class MimsmsChatterController(http.Controller):
             elif model == 'stock.picking' and record.picking_type_code == 'outgoing':
                 action = record.action_send_delivery_sms()
             else:
-                partner = record if model == 'res.partner' else record.partner_id.commercial_partner_id
-                if not (partner.mobile or partner.phone):
-                    raise UserError(_('No mobile or phone number was found for this customer.'))
+                composer_view = request.env.ref(
+                    'mimsms_gateway.view_sms_composer_form'
+                )
                 action = {
                     'name': _('Send SMS'),
                     'type': 'ir.actions.act_window',
                     'res_model': 'mimsms.composer',
                     'view_mode': 'form',
-                    'views': [[False, 'form']],
+                    'view_id': composer_view.id,
+                    'views': [[composer_view.id, 'form']],
                     'target': 'new',
                     'context': {
                         'default_res_model': model,

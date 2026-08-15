@@ -5,11 +5,21 @@
         <field name="name">sms.composer.form</field>
         <field name="model">mimsms.composer</field>
         <field name="arch" type="xml">
-            <form string="Send SMS">
+            <form string="Send SMS" class="o_mimsms_composer">
                 <sheet>
-                    <group>
+                    <div class="o_mimsms_composer_header">
+                        <div class="o_mimsms_composer_icon">
+                            <i class="fa fa-mobile"/>
+                        </div>
+                        <div>
+                            <h2 class="mb-1">Send SMS</h2>
+                            <p class="text-muted mb-0">Review the recipient and message before sending.</p>
+                        </div>
+                    </div>
+
+                    <group class="o_mimsms_composer_options">
                         <group>
-                            <field name="composition_mode1" widget="radio"/>
+                            <field name="composition_mode1" widget="radio" options="{'horizontal': true}"/>
                             <field name="template_id" 
                                    invisible="composition_mode1 != 'template'"
                                    options="{'no_create': True}"
@@ -18,24 +28,26 @@
                         <group>
                             <field name="res_model" invisible="1"/>
                             <field name="res_ids" invisible="1"/>
-                            <field name="recipient_count" readonly="1"/>
-                            <label for="recipient_count" string="Recipients"/>
+                            <field name="recipient_count" readonly="1" class="o_mimsms_recipient_count"/>
                         </group>
                     </group>
                     
                     <group>
-                        <div class="alert alert-info" role="alert" invisible="composition_mode1 not in ['single', 'mass']">
-                            <strong>Single/Mass SMS:</strong> Send individual SMS to each recipient with personalized content
+                        <div class="alert alert-info o_mimsms_mode_hint" role="alert" invisible="composition_mode1 != 'single'">
+                            <i class="fa fa-info-circle me-2"/>
+                            <strong>Single SMS:</strong> Send a message to one recipient.
                         </div>
-                        <div class="alert alert-info" role="alert" invisible="composition_mode1 != 'bulk'">
+                        <div class="alert alert-info o_mimsms_mode_hint" role="alert" invisible="composition_mode1 != 'bulk'">
+                            <i class="fa fa-users me-2"/>
                             <strong>Bulk SMS:</strong> Send the same message to all recipients at once
                         </div>
-                        <div class="alert alert-info" role="alert" invisible="composition_mode1 != 'template'">
+                        <div class="alert alert-info o_mimsms_mode_hint" role="alert" invisible="composition_mode1 != 'template'">
+                            <i class="fa fa-file-text-o me-2"/>
                             <strong>Template Mode:</strong> Use a saved template with dynamic fields
                         </div>
                     </group>
                     
-                    <notebook>
+                    <notebook class="o_mimsms_composer_notebook">
                         <page string="Message" name="message">
                             <field name="message" 
                                    widget="text" 
@@ -81,7 +93,7 @@
                     <button string="Send SMS" 
                             name="action_send_sms" 
                             type="object" 
-                            class="btn-primary"
+                            class="btn-primary o_mimsms_send_button"
                             data-hotkey="s"/>
                     <button string="Cancel" 
                             class="btn-secondary" 

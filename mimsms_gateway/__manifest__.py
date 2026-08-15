@@ -37,6 +37,7 @@
     ],
     'assets': {
         'web.assets_backend': [
+            'mimsms_gateway/static/src/scss/mimsms_backend.scss',
             'mimsms_gateway/static/src/xml/chatter_sms_template.xml',
             'mimsms_gateway/static/src/js/chatter_sms.js',
         ],

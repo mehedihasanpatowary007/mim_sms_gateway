@@ -45,7 +45,11 @@ class SmsHistory(models.Model):
     def name_get(self):
         result = []
         for record in self:
-            name = f"{record.mobile} - {record.create_date.strftime('%Y-%m-%d %H:%M')}"
+            created = (
+                record.create_date.strftime('%Y-%m-%d %H:%M')
+                if record.create_date else _('New')
+            )
+            name = f"{record.mobile} - {created}"
             result.append((record.id, name))
         return result
     

@@ -282,8 +282,9 @@ class SmsComposer(models.TransientModel):
             'mass_mail': 'bulk',
         }
         
-        if self.composition_mode1 in mode_mapping:
-            self.composition_mode1 = mode_mapping[self.composition_mode1]
+        self.composition_mode1 = mode_mapping.get(
+            self.composition_mode1, self.composition_mode1
+        )
         
         # Clear template if not in template mode
         if self.composition_mode1 != 'template':
@@ -428,6 +429,12 @@ class SmsComposer(models.TransientModel):
         
         if not sms_data:
             raise UserError(_('No valid mobile numbers found in selected records'))
+
+        if self.composition_mode1 == 'single' and len(sms_data) != 1:
+            raise UserError(_(
+                'Single SMS mode requires exactly one recipient. '
+                'Please select Bulk SMS for multiple recipients.'
+            ))
         
         # Send SMS
         success_count = 0

@@ -5,7 +5,7 @@
         <field name="name">mimsms.config.form</field>
         <field name="model">mimsms.config</field>
         <field name="arch" type="xml">
-            <form string="MiMSMS Configuration">
+            <form string="MiMSMS Configuration" class="o_mimsms_config">
                 <header>
                     <button name="action_check_balance" 
                             string="Check Balance" 
@@ -20,7 +20,7 @@
                                 icon="fa-money">
                             <div class="o_field_widget o_stat_info">
                                 <span class="o_stat_value">
-                                    ৳<field name="balance" nolabel="1"/>
+                                    ৳ <field name="balance" nolabel="1"/>
                                 </span>
                                 <span class="o_stat_text">Balance</span>
                             </div>
@@ -61,8 +61,8 @@
                                 </group>
                             </group>
                             <group>
-                                <div class="alert alert-info mt16" role="alert">
-                                    <p><strong>📱 How to use MiMSMS:</strong></p>
+                                <div class="alert alert-info mt16 o_mimsms_help" role="alert">
+                                    <p><strong><i class="fa fa-info-circle me-2"/>How to use MiMSMS</strong></p>
                                     <ul class="mb-0">
                                         <li>Click "Check Balance" button to verify your SMS credits</li>
                                         <li>Navigate to SMS menu to send messages to contacts or leads</li>
