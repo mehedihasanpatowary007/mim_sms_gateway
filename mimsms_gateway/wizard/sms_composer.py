@@ -276,13 +276,18 @@ class SmsComposer(models.TransientModel):
         if self.template_id:
             self.message = self.template_id.body
             self.composition_mode1 = 'template'
+        elif self.is_chatter_single:
+            self.composition_mode1 = 'single'
     
     @api.onchange('composition_mode1')
     def _onchange_composition_mode(self):
         """Handle composition mode changes"""
         if self.is_chatter_single:
-            self.composition_mode1 = 'single'
-            self.template_id = False
+            # Chatter always has one recipient, but a template may still be
+            # selected to personalize that recipient's message.
+            self.composition_mode1 = (
+                'template' if self.template_id else 'single'
+            )
             return
 
         # Map invalid modes
@@ -640,7 +645,12 @@ class SmsComposer(models.TransientModel):
                         'message': message,
                         'type': 'success',
                         'sticky': False,
-                        'next': {'type': 'ir.actions.act_window_close'},
+                        # Reload closes the modal and refreshes the underlying
+                        # document so the new chatter status appears at once.
+                        'next': {
+                            'type': 'ir.actions.client',
+                            'tag': 'reload',
+                        },
                     }
                 }
             else:

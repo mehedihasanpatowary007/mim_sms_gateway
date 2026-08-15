@@ -2,5 +2,5 @@ id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_mimsms_config_manager,mimsms.config.manager,model_mimsms_config,mimsms_gateway.group_sms_gateway_manager,1,1,1,1
 access_sms_template_user,sms.template.user,model_sms_template,mimsms_gateway.group_sms_gateway_user,1,1,1,1
 access_sms_history_user,sms.history.user,model_sms_history,mimsms_gateway.group_sms_gateway_user,1,0,1,0
-access_sms_history_manager,sms.history.manager,model_sms_history,mimsms_gateway.group_sms_gateway_manager,1,1,1,1
+access_sms_history_manager,sms.history.manager,model_sms_history,mimsms_gateway.group_sms_gateway_manager,1,0,1,0
 access_mimsms_composer,mimsms.composer,model_mimsms_composer,mimsms_gateway.group_sms_gateway_user,1,1,1,1

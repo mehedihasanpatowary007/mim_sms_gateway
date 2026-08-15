@@ -25,9 +25,11 @@
                                    options="{'horizontal': true}"
                                    invisible="is_chatter_single"/>
                             <field name="template_id" 
+                                   string="SMS Template"
                                    options="{'no_create': True}"
                                    domain="[('model', '=', res_model)]"
-                                   invisible="is_chatter_single or composition_mode1 != 'template'"/>
+                                   invisible="not is_chatter_single and composition_mode1 != 'template'"
+                                   placeholder="Optional: choose a message template"/>
                         </group>
                         <group>
                             <field name="res_model" invisible="1"/>
@@ -49,7 +51,7 @@
                             <i class="fa fa-users me-2"/>
                             <strong>Bulk SMS:</strong> Send the same message to all recipients at once
                         </div>
-                        <div class="alert alert-info o_mimsms_mode_hint" role="alert" invisible="composition_mode1 != 'template'">
+                        <div class="alert alert-info o_mimsms_mode_hint" role="alert" invisible="composition_mode1 != 'template' or is_chatter_single">
                             <i class="fa fa-file-text-o me-2"/>
                             <strong>Template Mode:</strong> Use a saved template with dynamic fields
                         </div>

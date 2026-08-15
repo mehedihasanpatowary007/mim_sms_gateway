@@ -6,13 +6,14 @@
         <xpath expr="//button[hasclass('o-mail-Chatter-activity')]" position="after">
             <button t-if="smsGateway.available and props.threadId"
                     type="button"
-                    class="btn btn-secondary ms-1 o_mimsms_chatter_button"
+                    class="btn btn-secondary text-nowrap ms-1 o_mimsms_chatter_button"
                     t-att-class="{ 'my-2': !props.compactHeight }"
                     t-att-disabled="smsGateway.opening"
                     t-on-click="onMimsmsSendSms"
                     title="Send SMS"
                     aria-label="Send SMS">
-                <i t-att-class="smsGateway.opening ? 'fa fa-spinner fa-spin' : 'fa fa-commenting-o'"/>
+                <i t-att-class="smsGateway.opening ? 'fa fa-spinner fa-spin me-1' : 'fa fa-mobile me-1'"/>
+                <span t-esc="smsGateway.opening ? 'Opening...' : 'Send SMS'"/>
             </button>
         </xpath>
     </t>
