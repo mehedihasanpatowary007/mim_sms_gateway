@@ -19,7 +19,9 @@ class SmsAutomation(models.AbstractModel):
     @api.model
     def _partner_mobile(self, partner):
         partner = partner.commercial_partner_id
-        return self._normalize_phone(partner.mobile or partner.phone)
+        mobile = partner['mobile'] if 'mobile' in partner._fields else False
+        phone = partner['phone'] if 'phone' in partner._fields else False
+        return self._normalize_phone(mobile or phone)
 
     @api.model
     def _send(self, *, partner, message, event_key, event_type, company,

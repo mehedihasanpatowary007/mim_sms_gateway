@@ -43,7 +43,7 @@ class SmsComposer(models.TransientModel):
         ('template', 'Use Template')
     ], string='Composition Mode', default='single', required=True)
     is_chatter_single = fields.Boolean(
-        string='Opened from Chatter',
+        string='Single Recipient Flow',
         default=False,
         readonly=True,
     )
@@ -198,7 +198,15 @@ class SmsComposer(models.TransientModel):
                     continue
         if hasattr(record, 'partner_id') and record.partner_id:
             partner = record.partner_id.commercial_partner_id
-            return self._normalize_phone_number(partner.mobile or partner.phone)
+            mobile = (
+                partner['mobile']
+                if 'mobile' in partner._fields else False
+            )
+            phone = (
+                partner['phone']
+                if 'phone' in partner._fields else False
+            )
+            return self._normalize_phone_number(mobile or phone)
         return False
 
     def _get_history_links(self, record):
@@ -346,16 +354,38 @@ class SmsComposer(models.TransientModel):
             
             if success:
                 body = Markup("""
-                <div style="padding: 10px; background-color: #d4edda; border-left: 4px solid #28a745; margin: 10px 0;">
-                    <p style="margin: 5px 0;"><strong>✉ SMS Status:</strong> Sent</p>
-                    <p style="margin: 5px 0;"><strong>Mobile:</strong> %s</p>
-                    <p style="margin: 5px 0;"><strong>Message:</strong> %s</p>
+                <div style="background: #ffffff; border: 1px solid #d9e2dc; border-left: 4px solid #28a745; border-radius: 8px; overflow: hidden; margin: 8px 0;">
+                    <table role="presentation" style="width: 100%%; border-collapse: collapse;">
+                        <tr>
+                            <td style="padding: 11px 12px; border-bottom: 1px solid #edf1ee;">
+                                <span style="display: inline-block; width: 22px; height: 22px; line-height: 22px; text-align: center; color: #ffffff; background: #28a745; border-radius: 50%%; font-weight: 700; margin-right: 7px;">✓</span>
+                                <strong style="color: #26382d;">SMS</strong>
+                            </td>
+                            <td style="padding: 11px 12px; border-bottom: 1px solid #edf1ee; text-align: right;">
+                                <span style="display: inline-block; padding: 3px 9px; color: #176b2c; background: #e4f4e8; border-radius: 12px; font-size: 11px; font-weight: 700; letter-spacing: .4px;">SENT</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td colspan="2" style="padding: 10px 12px 12px;">
+                                <table role="presentation" style="width: 100%%; border-collapse: collapse;">
+                                    <tr>
+                                        <td style="width: 64px; padding: 3px 8px 3px 0; color: #6b746e; vertical-align: top;">Mobile</td>
+                                        <td style="padding: 3px 0; color: #26382d; vertical-align: top;">%s</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="width: 64px; padding: 3px 8px 3px 0; color: #6b746e; vertical-align: top;">Message</td>
+                                        <td style="padding: 3px 0; color: #26382d; vertical-align: top; white-space: pre-wrap;">%s</td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                    </table>
                 </div>
                 """) % (mobile_safe, message_safe)
                 
                 record.sudo().with_context(mail_create_nosubscribe=True).message_post(
                     body=body,
-                    subject='SMS Status',
+                    subject=False,
                     message_type='comment',
                     subtype_xmlid='mail.mt_comment'
                 )
@@ -366,17 +396,33 @@ class SmsComposer(models.TransientModel):
                     or _('Unknown error')
                 )
                 body = Markup("""
-                <div style="padding: 10px; background-color: #f8d7da; border-left: 4px solid #dc3545; margin: 10px 0;">
-                    <p style="margin: 5px 0;"><strong>✉ SMS Status:</strong> Failed</p>
-                    <p style="margin: 5px 0;"><strong>Mobile:</strong> %s</p>
-                    <p style="margin: 5px 0;"><strong>Message:</strong> %s</p>
-                    <p style="margin: 5px 0;"><strong>Error:</strong> %s</p>
+                <div style="background: #ffffff; border: 1px solid #ead9db; border-left: 4px solid #dc3545; border-radius: 8px; overflow: hidden; margin: 8px 0;">
+                    <table role="presentation" style="width: 100%%; border-collapse: collapse;">
+                        <tr>
+                            <td style="padding: 11px 12px; border-bottom: 1px solid #f3e9ea;">
+                                <span style="display: inline-block; width: 22px; height: 22px; line-height: 22px; text-align: center; color: #ffffff; background: #dc3545; border-radius: 50%%; font-weight: 700; margin-right: 7px;">!</span>
+                                <strong style="color: #49292c;">SMS</strong>
+                            </td>
+                            <td style="padding: 11px 12px; border-bottom: 1px solid #f3e9ea; text-align: right;">
+                                <span style="display: inline-block; padding: 3px 9px; color: #8c2430; background: #fae7e9; border-radius: 12px; font-size: 11px; font-weight: 700; letter-spacing: .4px;">FAILED</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td colspan="2" style="padding: 10px 12px 12px;">
+                                <table role="presentation" style="width: 100%%; border-collapse: collapse;">
+                                    <tr><td style="width: 64px; padding: 3px 8px 3px 0; color: #78696b; vertical-align: top;">Mobile</td><td style="padding: 3px 0; color: #49292c; vertical-align: top;">%s</td></tr>
+                                    <tr><td style="width: 64px; padding: 3px 8px 3px 0; color: #78696b; vertical-align: top;">Message</td><td style="padding: 3px 0; color: #49292c; vertical-align: top; white-space: pre-wrap;">%s</td></tr>
+                                    <tr><td style="width: 64px; padding: 3px 8px 3px 0; color: #78696b; vertical-align: top;">Error</td><td style="padding: 3px 0; color: #8c2430; vertical-align: top;">%s</td></tr>
+                                </table>
+                            </td>
+                        </tr>
+                    </table>
                 </div>
                 """) % (mobile_safe, message_safe, error_safe)
                 
                 record.sudo().with_context(mail_create_nosubscribe=True).message_post(
                     body=body,
-                    subject='SMS Status',
+                    subject=False,
                     message_type='comment',
                     subtype_xmlid='mail.mt_comment'
                 )
@@ -392,7 +438,7 @@ class SmsComposer(models.TransientModel):
             try:
                 fallback_status = _('Sent') if success else _('Failed')
                 fallback_body = Markup(
-                    '<p><strong>✉ SMS Status:</strong> %s</p>'
+                    '<p><strong>SMS:</strong> %s</p>'
                     '<p><strong>Mobile:</strong> %s</p>'
                     '<p><strong>Message:</strong> %s</p>'
                 ) % (
@@ -404,7 +450,7 @@ class SmsComposer(models.TransientModel):
                     mail_create_nosubscribe=True
                 ).message_post(
                     body=fallback_body,
-                    subject='SMS Status',
+                    subject=False,
                     message_type='comment',
                     subtype_xmlid='mail.mt_comment',
                 )

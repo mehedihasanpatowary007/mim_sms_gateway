@@ -45,7 +45,7 @@
                         </div>
                         <div class="alert alert-info o_mimsms_mode_hint" role="alert" invisible="not is_chatter_single">
                             <i class="fa fa-user me-2"/>
-                            <strong>Direct SMS:</strong> This message will be sent to the current contact.
+                            <strong>Single Recipient:</strong> This message will be sent to the customer on this document.
                         </div>
                         <div class="alert alert-info o_mimsms_mode_hint" role="alert" invisible="composition_mode1 != 'bulk'">
                             <i class="fa fa-users me-2"/>

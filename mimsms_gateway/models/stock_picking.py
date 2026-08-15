@@ -24,6 +24,7 @@ class StockPicking(models.Model):
                 'default_res_model': self._name,
                 'default_res_ids': str(self.ids),
                 'default_composition_mode1': 'single',
+                'default_is_chatter_single': True,
                 'default_message': message,
             },
         }
