@@ -41,6 +41,11 @@ class SmsComposer(models.TransientModel):
         ('bulk', 'Bulk SMS'),
         ('template', 'Use Template')
     ], string='Composition Mode', default='single', required=True)
+    is_chatter_single = fields.Boolean(
+        string='Opened from Chatter',
+        default=False,
+        readonly=True,
+    )
     
     res_model = fields.Char(string='Document Model')
     res_ids = fields.Char(string='Document IDs')
@@ -275,6 +280,11 @@ class SmsComposer(models.TransientModel):
     @api.onchange('composition_mode1')
     def _onchange_composition_mode(self):
         """Handle composition mode changes"""
+        if self.is_chatter_single:
+            self.composition_mode1 = 'single'
+            self.template_id = False
+            return
+
         # Map invalid modes
         mode_mapping = {
             'comment': 'single',
@@ -332,34 +342,40 @@ class SmsComposer(models.TransientModel):
             if success:
                 status_safe = Markup.escape(response.get('statusMessage', 'Success'))
                 body = Markup("""
-                <div style="padding: 10px; background-color: #d4edda; border-left: 4px solid #28a745; margin: 10px 0;">
-                    <h4 style="color: #155724; margin: 0 0 10px 0;">🎉 SMS Sent Successfully</h4>
-                    <p style="margin: 5px 0;"><strong>📱 Mobile:</strong> %s</p>
-                    <p style="margin: 5px 0;"><strong>💬 Message:</strong> %s</p>
-                    <p style="margin: 5px 0;"><strong>✅ Status:</strong> %s</p>
+                <div style="padding: 14px 16px; background: #f4fbf6; border: 1px solid #cdebd5; border-left: 4px solid #28a745; border-radius: 8px; margin: 8px 0;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px;">
+                        <span title="SMS Status" aria-label="SMS Status" style="display: inline-grid; place-items: center; width: 30px; height: 30px; color: #1f5130; background: #d4edda; border-radius: 50%; font-size: 14px;"><i class="fa fa-commenting-o"></i></span>
+                        <span style="padding: 3px 10px; color: #155724; background: #d4edda; border-radius: 999px; font-size: 12px; font-weight: 600;">Sent</span>
+                    </div>
+                    <p style="margin: 5px 0;"><strong>Mobile:</strong> %s</p>
+                    <p style="margin: 5px 0;"><strong>Message:</strong> %s</p>
+                    <p style="margin: 5px 0; color: #52705b;"><strong>Gateway:</strong> %s</p>
                 </div>
                 """) % (mobile_safe, message_safe, status_safe)
                 
                 record.message_post(
                     body=body,
-                    subject='SMS Sent Successfully',
+                    subject='SMS Status',
                     message_type='comment',
                     subtype_xmlid='mail.mt_comment'
                 )
             else:
                 error_safe = Markup.escape(response.get('statusMessage', 'Unknown error'))
                 body = Markup("""
-                <div style="padding: 10px; background-color: #f8d7da; border-left: 4px solid #dc3545; margin: 10px 0;">
-                    <h4 style="color: #721c24; margin: 0 0 10px 0;">❌ SMS Sending Failed</h4>
-                    <p style="margin: 5px 0;"><strong>📱 Mobile:</strong> %s</p>
-                    <p style="margin: 5px 0;"><strong>💬 Message:</strong> %s</p>
-                    <p style="margin: 5px 0;"><strong>⛔ Error:</strong> %s</p>
+                <div style="padding: 14px 16px; background: #fff6f6; border: 1px solid #f2cccc; border-left: 4px solid #dc3545; border-radius: 8px; margin: 8px 0;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px;">
+                        <span title="SMS Status" aria-label="SMS Status" style="display: inline-grid; place-items: center; width: 30px; height: 30px; color: #68232a; background: #f8d7da; border-radius: 50%; font-size: 14px;"><i class="fa fa-commenting-o"></i></span>
+                        <span style="padding: 3px 10px; color: #721c24; background: #f8d7da; border-radius: 999px; font-size: 12px; font-weight: 600;">Failed</span>
+                    </div>
+                    <p style="margin: 5px 0;"><strong>Mobile:</strong> %s</p>
+                    <p style="margin: 5px 0;"><strong>Message:</strong> %s</p>
+                    <p style="margin: 5px 0; color: #85434a;"><strong>Error:</strong> %s</p>
                 </div>
                 """) % (mobile_safe, message_safe, error_safe)
                 
                 record.message_post(
                     body=body,
-                    subject='SMS Sending Failed',
+                    subject='SMS Status',
                     message_type='comment',
                     subtype_xmlid='mail.mt_comment'
                 )
@@ -624,6 +640,7 @@ class SmsComposer(models.TransientModel):
                         'message': message,
                         'type': 'success',
                         'sticky': False,
+                        'next': {'type': 'ir.actions.act_window_close'},
                     }
                 }
             else:

@@ -19,11 +19,15 @@
 
                     <group class="o_mimsms_composer_options">
                         <group>
-                            <field name="composition_mode1" widget="radio" options="{'horizontal': true}"/>
+                            <field name="is_chatter_single" invisible="1"/>
+                            <field name="composition_mode1"
+                                   widget="radio"
+                                   options="{'horizontal': true}"
+                                   invisible="is_chatter_single"/>
                             <field name="template_id" 
-                                   invisible="composition_mode1 != 'template'"
                                    options="{'no_create': True}"
-                                   domain="[('model', '=', res_model)]"/>
+                                   domain="[('model', '=', res_model)]"
+                                   invisible="is_chatter_single or composition_mode1 != 'template'"/>
                         </group>
                         <group>
                             <field name="res_model" invisible="1"/>
@@ -33,9 +37,13 @@
                     </group>
                     
                     <group>
-                        <div class="alert alert-info o_mimsms_mode_hint" role="alert" invisible="composition_mode1 != 'single'">
+                        <div class="alert alert-info o_mimsms_mode_hint" role="alert" invisible="composition_mode1 != 'single' or is_chatter_single">
                             <i class="fa fa-info-circle me-2"/>
                             <strong>Single SMS:</strong> Send a message to one recipient.
+                        </div>
+                        <div class="alert alert-info o_mimsms_mode_hint" role="alert" invisible="not is_chatter_single">
+                            <i class="fa fa-user me-2"/>
+                            <strong>Direct SMS:</strong> This message will be sent to the current contact.
                         </div>
                         <div class="alert alert-info o_mimsms_mode_hint" role="alert" invisible="composition_mode1 != 'bulk'">
                             <i class="fa fa-users me-2"/>

@@ -70,6 +70,16 @@ class MimsmsChatterController(http.Controller):
                         'default_composition_mode1': 'single',
                     },
                 }
+
+            # Chatter always targets the current record, so the composer is a
+            # focused single-recipient flow. Bulk/template modes remain
+            # available from their regular entry points.
+            action_context = dict(action.get('context', {}))
+            action_context.update({
+                'default_composition_mode1': 'single',
+                'default_is_chatter_single': True,
+            })
+            action['context'] = action_context
             return {'success': True, 'action': action}
         except (AccessError, UserError) as error:
             return {'error': True, 'message': str(error)}
