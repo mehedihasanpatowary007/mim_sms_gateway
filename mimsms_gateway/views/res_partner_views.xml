@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_partner_form_mimsms_history" model="ir.ui.view">
+        <field name="name">res.partner.form.mimsms.history</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="contacts.view_partner_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_view_sms_history"
+                        type="object"
+                        class="oe_stat_button"
+                        icon="fa-comments"
+                        groups="mimsms_gateway.group_sms_gateway_user">
+                    <field name="sms_history_count"
+                           widget="statinfo"
+                           string="SMS History"/>
+                </button>
+            </xpath>
+        </field>
+    </record>
+</odoo>

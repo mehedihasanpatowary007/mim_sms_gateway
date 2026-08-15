@@ -350,7 +350,7 @@ class SmsComposer(models.TransientModel):
         try:
             # Escape message content to prevent HTML injection
             mobile_safe = Markup.escape(mobile)
-            message_safe = Markup.escape(message_preview[:100] + ('...' if len(message_preview) > 100 else ''))
+            message_safe = Markup.escape(message_preview)
             
             if success:
                 body = Markup("""
@@ -358,7 +358,7 @@ class SmsComposer(models.TransientModel):
                     <table role="presentation" style="width: 100%%; border-collapse: collapse;">
                         <tr>
                             <td style="padding: 11px 12px; border-bottom: 1px solid #edf1ee;">
-                                <span style="display: inline-block; width: 22px; height: 22px; line-height: 22px; text-align: center; color: #ffffff; background: #28a745; border-radius: 50%%; font-weight: 700; margin-right: 7px;">✓</span>
+                                <span title="Sent" style="display: inline-block; color: #176b2c; font-size: 20px; line-height: 1; font-weight: 800; margin-right: 7px; vertical-align: middle;">✓</span>
                                 <strong style="color: #26382d;">SMS</strong>
                             </td>
                             <td style="padding: 11px 12px; border-bottom: 1px solid #edf1ee; text-align: right;">
@@ -374,7 +374,7 @@ class SmsComposer(models.TransientModel):
                                     </tr>
                                     <tr>
                                         <td style="width: 64px; padding: 3px 8px 3px 0; color: #6b746e; vertical-align: top;">Message</td>
-                                        <td style="padding: 3px 0; color: #26382d; vertical-align: top; white-space: pre-wrap;">%s</td>
+                                        <td style="padding: 3px 0; color: #26382d; vertical-align: top; white-space: pre-wrap; overflow-wrap: anywhere;">%s</td>
                                     </tr>
                                 </table>
                             </td>
@@ -400,7 +400,7 @@ class SmsComposer(models.TransientModel):
                     <table role="presentation" style="width: 100%%; border-collapse: collapse;">
                         <tr>
                             <td style="padding: 11px 12px; border-bottom: 1px solid #f3e9ea;">
-                                <span style="display: inline-block; width: 22px; height: 22px; line-height: 22px; text-align: center; color: #ffffff; background: #dc3545; border-radius: 50%%; font-weight: 700; margin-right: 7px;">!</span>
+                                <span title="Failed" style="display: inline-block; color: #a61e2c; font-size: 20px; line-height: 1; font-weight: 800; margin-right: 7px; vertical-align: middle;">!</span>
                                 <strong style="color: #49292c;">SMS</strong>
                             </td>
                             <td style="padding: 11px 12px; border-bottom: 1px solid #f3e9ea; text-align: right;">
@@ -411,7 +411,7 @@ class SmsComposer(models.TransientModel):
                             <td colspan="2" style="padding: 10px 12px 12px;">
                                 <table role="presentation" style="width: 100%%; border-collapse: collapse;">
                                     <tr><td style="width: 64px; padding: 3px 8px 3px 0; color: #78696b; vertical-align: top;">Mobile</td><td style="padding: 3px 0; color: #49292c; vertical-align: top;">%s</td></tr>
-                                    <tr><td style="width: 64px; padding: 3px 8px 3px 0; color: #78696b; vertical-align: top;">Message</td><td style="padding: 3px 0; color: #49292c; vertical-align: top; white-space: pre-wrap;">%s</td></tr>
+                                    <tr><td style="width: 64px; padding: 3px 8px 3px 0; color: #78696b; vertical-align: top;">Message</td><td style="padding: 3px 0; color: #49292c; vertical-align: top; white-space: pre-wrap; overflow-wrap: anywhere;">%s</td></tr>
                                     <tr><td style="width: 64px; padding: 3px 8px 3px 0; color: #78696b; vertical-align: top;">Error</td><td style="padding: 3px 0; color: #8c2430; vertical-align: top;">%s</td></tr>
                                 </table>
                             </td>

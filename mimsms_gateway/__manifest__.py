@@ -33,6 +33,7 @@
         'views/sms_history_views.xml',
         'views/account_move_views.xml',
         'views/stock_picking_views.xml',
+        'views/res_partner_views.xml',
         'wizard/sms_composer_views.xml',
         'views/menus.xml',
     ],

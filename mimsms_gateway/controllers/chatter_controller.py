@@ -71,6 +71,15 @@ class MimsmsChatterController(http.Controller):
                     },
                 }
 
+            # Odoo 19's action service preprocesses ``views`` with ``map``.
+            # Actions returned by the dedicated invoice/delivery methods only
+            # define ``view_mode``, so normalize every chatter action here.
+            composer_view = request.env.ref(
+                'mimsms_gateway.view_sms_composer_form'
+            )
+            action['view_id'] = composer_view.id
+            action['views'] = [[composer_view.id, 'form']]
+
             # Chatter always targets the current record, so the composer is a
             # focused single-recipient flow. Bulk/template modes remain
             # available from their regular entry points.
