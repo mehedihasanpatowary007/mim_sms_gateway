@@ -24,6 +24,19 @@ class SmsAutomation(models.AbstractModel):
         return self._normalize_phone(mobile or phone)
 
     @api.model
+    def _post_source_chatter_status(self, source, success, mobile, message, response):
+        """Mirror an automatic SMS result on its source document chatter."""
+        if not source or not hasattr(source, 'message_post'):
+            return
+        self.env['mimsms.composer']._post_chatter_message(
+            record=source,
+            success=success,
+            mobile=mobile,
+            message_preview=message,
+            response=response,
+        )
+
+    @api.model
     def _send(self, *, partner, message, event_key, event_type, company,
               source=None, template=None):
         """Send one duplicate-safe automatic SMS without blocking business flows."""
@@ -67,9 +80,19 @@ class SmsAutomation(models.AbstractModel):
                 'sent_date': fields.Datetime.now() if success else False,
                 'error_message': False if success else response.get('statusMessage'),
             })
+            self._post_source_chatter_status(
+                source, success, mobile, message, response
+            )
             return success
         except Exception as error:
             history.write({'status': 'failed', 'error_message': str(error)})
+            self._post_source_chatter_status(
+                source,
+                False,
+                mobile,
+                message,
+                {'statusMessage': str(error)},
+            )
             _logger.exception('Automatic SMS failed for event %s', event_key)
             return False
 
