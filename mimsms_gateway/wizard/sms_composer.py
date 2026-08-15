@@ -4,6 +4,7 @@ from odoo.tools import html_sanitize
 import logging
 import re
 import ast
+from markupsafe import Markup
 
 _logger = logging.getLogger(__name__)
 
@@ -340,7 +341,6 @@ class SmsComposer(models.TransientModel):
         
         try:
             # Escape message content to prevent HTML injection
-            from markupsafe import Markup
             mobile_safe = Markup.escape(mobile)
             message_safe = Markup.escape(message_preview[:100] + ('...' if len(message_preview) > 100 else ''))
             
@@ -358,7 +358,7 @@ class SmsComposer(models.TransientModel):
                 </div>
                 """) % (mobile_safe, message_safe, status_safe)
                 
-                record.message_post(
+                record.sudo().with_context(mail_create_nosubscribe=True).message_post(
                     body=body,
                     subject='SMS Status',
                     message_type='comment',
@@ -378,14 +378,53 @@ class SmsComposer(models.TransientModel):
                 </div>
                 """) % (mobile_safe, message_safe, error_safe)
                 
-                record.message_post(
+                record.sudo().with_context(mail_create_nosubscribe=True).message_post(
                     body=body,
                     subject='SMS Status',
                     message_type='comment',
                     subtype_xmlid='mail.mt_comment'
                 )
         except Exception as e:
-            _logger.error(f"Failed to post chatter message: {str(e)}")
+            _logger.exception(
+                'Failed to post the styled SMS status to %s,%s',
+                record._name,
+                record.id,
+            )
+            # A chatter audit entry is more important than the styled card.
+            # Retry with minimal HTML in case the original content is rejected
+            # by a sanitizer or a model-specific mail override.
+            try:
+                fallback_status = _('Sent') if success else _('Failed')
+                fallback_detail = (
+                    response.get('statusMessage')
+                    or response.get('message')
+                    or _('No gateway message')
+                )
+                fallback_body = Markup(
+                    '<p><strong>SMS Status:</strong> %s</p>'
+                    '<p><strong>Mobile:</strong> %s</p>'
+                    '<p><strong>Message:</strong> %s</p>'
+                    '<p><strong>Gateway:</strong> %s</p>'
+                ) % (
+                    Markup.escape(fallback_status),
+                    mobile_safe,
+                    message_safe,
+                    Markup.escape(fallback_detail),
+                )
+                record.sudo().with_context(
+                    mail_create_nosubscribe=True
+                ).message_post(
+                    body=fallback_body,
+                    subject='SMS Status',
+                    message_type='comment',
+                    subtype_xmlid='mail.mt_comment',
+                )
+            except Exception:
+                _logger.exception(
+                    'Could not create the fallback SMS chatter entry for %s,%s',
+                    record._name,
+                    record.id,
+                )
     
     def action_send_sms(self):
         """Send SMS to recipients"""
@@ -645,12 +684,7 @@ class SmsComposer(models.TransientModel):
                         'message': message,
                         'type': 'success',
                         'sticky': False,
-                        # Reload closes the modal and refreshes the underlying
-                        # document so the new chatter status appears at once.
-                        'next': {
-                            'type': 'ir.actions.client',
-                            'tag': 'reload',
-                        },
+                        'next': {'type': 'ir.actions.act_window_close'},
                     }
                 }
             else:
