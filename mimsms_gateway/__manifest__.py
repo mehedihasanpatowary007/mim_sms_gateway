@@ -1,6 +1,6 @@
 {
     'name': 'MiMSMS Gateway',
-    'version': '19.0.1.4.1',
+    'version': '19.0.1.4.2',
     'category': 'Bridge Chemie',
     'summary': 'Send SMS via MiMSMS API - Single, Bulk & Template Support',
     'description': """

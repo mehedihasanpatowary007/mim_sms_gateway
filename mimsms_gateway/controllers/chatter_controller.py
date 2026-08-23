@@ -64,10 +64,13 @@ class MimsmsChatterController(http.Controller):
                 'default_composition_mode1': 'single',
                 'default_is_chatter_single': True,
             })
+            action = request.env['ir.actions.actions']._for_xml_id(
+                'mimsms_gateway.action_contacts_send_mimsms'
+            )
+            action['context'] = action_context
             return {
                 'success': True,
-                'action_xmlid': 'mimsms_gateway.action_contacts_send_mimsms',
-                'context': action_context,
+                'action': action,
             }
         except (AccessError, UserError) as error:
             return {'error': True, 'message': str(error)}

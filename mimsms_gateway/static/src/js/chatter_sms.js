@@ -12,7 +12,8 @@ patch(Chatter.prototype, {
         super.setup(...arguments);
         this.actionService = useService("action");
         this.notificationService = useService("notification");
-        this.smsGateway = useState({ available: false, opening: false });
+        this.smsGateway = useState({ available: false });
+        this._mimsmsOpening = false;
         onWillStart(async () => {
             try {
                 const result = await rpc("/mimsms_gateway/chatter/availability", {
@@ -27,10 +28,10 @@ patch(Chatter.prototype, {
     },
 
     async onMimsmsSendSms() {
-        if (this.smsGateway.opening) {
+        if (this._mimsmsOpening) {
             return;
         }
-        this.smsGateway.opening = true;
+        this._mimsmsOpening = true;
         try {
             const result = await rpc("/mimsms_gateway/chatter/send", {
                 model: this.props.threadModel,
@@ -42,11 +43,7 @@ patch(Chatter.prototype, {
                 });
                 return;
             }
-            if (result?.action_xmlid) {
-                await this.actionService.doAction(result.action_xmlid, {
-                    additionalContext: result.context || {},
-                });
-            } else if (result?.action) {
+            if (result?.action) {
                 await this.actionService.doAction(result.action);
             }
         } catch (error) {
@@ -56,7 +53,7 @@ patch(Chatter.prototype, {
                 type: "danger",
             });
         } finally {
-            this.smsGateway.opening = false;
+            this._mimsmsOpening = false;
         }
     },
 });
