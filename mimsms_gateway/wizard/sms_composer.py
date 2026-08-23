@@ -118,7 +118,7 @@ class SmsComposer(models.TransientModel):
             wizard.is_single_partner = bool(partner)
             wizard.partner_recipient_name = partner.display_name if partner else ''
             wizard.partner_recipient_mobile = (
-                (partner.mobile or partner.phone or '') if partner else ''
+                (partner._mimsms_phone_value() or '') if partner else ''
             )
             wizard.manager_recipient_name = (
                 partner.sms_manager_name or '' if partner else ''
@@ -325,7 +325,7 @@ class SmsComposer(models.TransientModel):
                         if wizard.send_to_partner:
                             recipients.append(
                                 f"{partner.display_name}: "
-                                f"{partner.mobile or partner.phone or ''}"
+                                f"{partner._mimsms_phone_value() or ''}"
                             )
                         if wizard.send_to_manager:
                             recipients.append(

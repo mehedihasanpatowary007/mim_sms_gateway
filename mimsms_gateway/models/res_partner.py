@@ -35,7 +35,15 @@ class ResPartner(models.Model):
             phone = '880' + phone
         return phone if re.fullmatch(r'8801[3-9][0-9]{8}', phone) else False
 
-    @api.constrains('sms_manager_name', 'sms_manager_mobile', 'mobile', 'phone')
+    def _mimsms_phone_value(self):
+        """Return the preferred phone value across Odoo partner variants."""
+        self.ensure_one()
+        for field_name in ('mobile', 'phone'):
+            if field_name in self._fields and self[field_name]:
+                return self[field_name]
+        return False
+
+    @api.constrains('sms_manager_name', 'sms_manager_mobile', 'phone')
     def _check_sms_manager(self):
         for partner in self:
             manager_name = (partner.sms_manager_name or '').strip()
@@ -53,7 +61,7 @@ class ResPartner(models.Model):
                     'Manager Mobile must be a valid Bangladesh mobile number.'
                 ))
             partner_mobile = partner._normalize_sms_mobile(
-                partner.mobile or partner.phone
+                partner._mimsms_phone_value()
             )
             if partner_mobile and manager_mobile == partner_mobile:
                 raise ValidationError(_(
