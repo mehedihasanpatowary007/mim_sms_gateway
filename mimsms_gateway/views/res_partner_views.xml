@@ -16,6 +16,15 @@
                            string="SMS History"/>
                 </button>
             </xpath>
+            <xpath expr="//page[@name='sales_purchases']/group[@name='container_row_2']"
+                   position="inside">
+                <group string="SMS Manager"
+                       name="mimsms_sms_manager"
+                       groups="mimsms_gateway.group_sms_gateway_user">
+                    <field name="sms_manager_name"/>
+                    <field name="sms_manager_mobile" widget="phone"/>
+                </group>
+            </xpath>
         </field>
     </record>
 
@@ -28,6 +37,6 @@
         <field name="binding_model_id" ref="base.model_res_partner"/>
         <field name="binding_view_types">list</field>
         <field name="group_ids" eval="[(4, ref('mimsms_gateway.group_sms_gateway_user'))]"/>
-        <field name="context">{'default_composition_mode1': 'bulk'}</field>
+        <field name="context">{}</field>
     </record>
 </odoo>

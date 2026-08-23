@@ -10,8 +10,10 @@
                   decoration-danger="state == 'failed'"
                   decoration-muted="state == 'skipped'">
                 <field name="create_date"/>
+                <field name="recipient_type"/>
+                <field name="recipient_name"/>
                 <field name="mobile"/>
-                <field name="partner_id"/>
+                <field name="partner_id" optional="hide"/>
                 <field name="send_mode"/>
                 <field name="message"/>
                 <field name="state"/>
@@ -35,6 +37,8 @@
                 <sheet>
                     <group>
                         <group>
+                            <field name="recipient_type"/>
+                            <field name="recipient_name"/>
                             <field name="mobile"/>
                             <field name="partner_id"/>
                             <field name="company_id"/>

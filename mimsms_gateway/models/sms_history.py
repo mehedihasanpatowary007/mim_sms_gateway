@@ -20,6 +20,11 @@ class SmsHistory(models.Model):
         ('failed', 'Failed'),
         ('skipped', 'Skipped'),
     ], string='Status', default='draft', required=True)
+    recipient_type = fields.Selection([
+        ('partner', 'Partner'),
+        ('manager', 'Manager'),
+    ], string='Recipient Type', default='partner', required=True, index=True)
+    recipient_name = fields.Char(string='Recipient Name', index=True)
     
     response_code = fields.Char(string='Response Code')
     response_message = fields.Char(string='Response Message')
@@ -59,6 +64,11 @@ class SmsHistory(models.Model):
                       template_id=None, status='draft', response=None, **extra_vals):
         """Create SMS history record"""
         message = self.env['mimsms.template']._coerce_body_text(message)
+        extra_vals.setdefault('recipient_type', 'partner')
+        if not extra_vals.get('recipient_name') and partner_id:
+            extra_vals['recipient_name'] = self.env['res.partner'].browse(
+                partner_id
+            ).display_name
         vals = {
             'mobile': mobile,
             'message': message,
@@ -105,6 +115,8 @@ class SmsHistory(models.Model):
             record=source,
             send_mode='dynamic',
             template=self.template_id,
+            recipient_type=self.recipient_type,
+            recipient_name=self.recipient_name,
         )
         return {
             'type': 'ir.actions.client',

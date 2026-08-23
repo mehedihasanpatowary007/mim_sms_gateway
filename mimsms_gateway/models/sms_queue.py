@@ -28,6 +28,11 @@ class SmsQueue(models.Model):
         ('bulk', 'Bulk'),
         ('dynamic', 'Dynamic'),
     ], string='Queue Mode', required=True, default='bulk', index=True)
+    recipient_type = fields.Selection([
+        ('partner', 'Partner'),
+        ('manager', 'Manager'),
+    ], string='Recipient Type', default='partner', required=True, index=True)
+    recipient_name = fields.Char(string='Recipient Name', index=True)
 
     partner_id = fields.Many2one('res.partner', string='Contact', ondelete='set null')
     template_id = fields.Many2one('mimsms.template', string='Template', ondelete='set null')
@@ -54,11 +59,15 @@ class SmsQueue(models.Model):
 
     @api.model
     def enqueue(self, *, mobile, message, record, send_mode='bulk', template=None,
-                event_type='manual', event_key=False):
+                event_type='manual', event_key=False, recipient_type='partner',
+                recipient_name=False):
         """Create a visible queue item and a matching queued history row."""
         partner = record if record._name == 'res.partner' else getattr(record, 'partner_id', False)
         partner = partner.commercial_partner_id if partner else False
         company = getattr(record, 'company_id', False) or self.env.company
+        recipient_name = recipient_name or (
+            partner.display_name if partner else record.display_name
+        )
         message = self.env['mimsms.template']._coerce_body_text(message)
         message = self.env['mimsms.composer']._validate_outbound_message(message, company)
         if template:
@@ -72,6 +81,8 @@ class SmsQueue(models.Model):
             'mobile': mobile,
             'message': message,
             'send_mode': send_mode,
+            'recipient_type': recipient_type,
+            'recipient_name': recipient_name,
             'partner_id': partner.id if partner else False,
             'template_id': template.id if template else False,
             'company_id': company.id,
@@ -85,6 +96,8 @@ class SmsQueue(models.Model):
             partner_id=partner.id if partner else False,
             template_id=template.id if template else False,
             status='queued',
+            recipient_type=recipient_type,
+            recipient_name=recipient_name,
             company_id=company.id,
             user_id=self.env.user.id,
             res_model=record._name,

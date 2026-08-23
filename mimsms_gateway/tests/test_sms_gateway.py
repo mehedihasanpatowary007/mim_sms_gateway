@@ -38,6 +38,28 @@ class TestMimsmsGateway(TransactionCase):
         for value in ('017123', '01212345678', '8801212345678', 'abc01712345678'):
             self.assertFalse(composer._normalize_phone_number(value))
 
+    def test_manager_profile_validation(self):
+        with self.assertRaises(ValidationError):
+            self.env['res.partner'].create({
+                'name': 'Missing manager mobile',
+                'mobile': '01711111111',
+                'sms_manager_name': 'Manager A',
+            })
+        with self.assertRaises(ValidationError):
+            self.env['res.partner'].create({
+                'name': 'Invalid manager mobile',
+                'mobile': '01711111111',
+                'sms_manager_name': 'Manager B',
+                'sms_manager_mobile': '12345',
+            })
+        with self.assertRaises(ValidationError):
+            self.env['res.partner'].create({
+                'name': 'Duplicate manager mobile',
+                'mobile': '01711111111',
+                'sms_manager_name': 'Manager C',
+                'sms_manager_mobile': '+8801711111111',
+            })
+
     def test_message_parts_and_unresolved_placeholder_validation(self):
         composer = self.env['mimsms.composer']
         self.assertEqual(composer._sms_metrics('a' * 160)[1], 1)
@@ -113,6 +135,108 @@ class TestMimsmsGateway(TransactionCase):
             self.env.ref('mimsms_gateway.group_sms_gateway_user'),
             action.group_ids,
         )
+
+    def test_single_partner_defaults_to_partner_recipient(self):
+        wizard = self.env['mimsms.composer'].create({
+            'res_model': 'res.partner',
+            'res_ids': str(self.partner.ids),
+            'composition_mode1': 'single',
+            'message': 'Partner default test',
+        })
+        self.assertTrue(wizard.is_single_partner)
+        self.assertTrue(wizard.send_to_partner)
+        self.assertFalse(wizard.send_to_manager)
+        self.assertEqual(wizard.recipient_count, 1)
+
+    def test_contacts_action_defaults_mode_from_selection_count(self):
+        Composer = self.env['mimsms.composer']
+        single_defaults = Composer.with_context(
+            active_model='res.partner',
+            active_ids=self.partner.ids,
+        ).default_get(['composition_mode1', 'res_model', 'res_ids'])
+        self.assertEqual(single_defaults['composition_mode1'], 'single')
+
+        second_partner = self.env['res.partner'].create({
+            'name': 'Second SMS Customer',
+            'mobile': '01912345678',
+        })
+        bulk_defaults = Composer.with_context(
+            active_model='res.partner',
+            active_ids=(self.partner | second_partner).ids,
+        ).default_get(['composition_mode1', 'res_model', 'res_ids'])
+        self.assertEqual(bulk_defaults['composition_mode1'], 'bulk')
+
+    def test_single_sms_can_target_manager_only(self):
+        self.partner.write({
+            'sms_manager_name': 'Account Manager',
+            'sms_manager_mobile': '01812-345678',
+        })
+        wizard = self.env['mimsms.composer'].create({
+            'res_model': 'res.partner',
+            'res_ids': str(self.partner.ids),
+            'composition_mode1': 'single',
+            'message': 'Manager only test',
+            'send_to_partner': False,
+            'send_to_manager': True,
+        })
+        wizard.action_send_sms()
+
+        queue = self.env['sms.queue'].search([
+            ('message', '=', 'Manager only test'),
+            ('res_model', '=', 'res.partner'),
+            ('res_id', '=', self.partner.id),
+        ])
+        self.assertEqual(len(queue), 1)
+        self.assertEqual(queue.mobile, '8801812345678')
+        self.assertEqual(queue.recipient_type, 'manager')
+        self.assertEqual(queue.recipient_name, 'Account Manager')
+        self.assertEqual(queue.send_mode, 'dynamic')
+        self.assertEqual(queue.history_id.recipient_type, 'manager')
+        self.assertEqual(queue.history_id.recipient_name, 'Account Manager')
+
+    def test_single_sms_can_target_partner_and_manager(self):
+        self.partner.write({
+            'sms_manager_name': 'Account Manager',
+            'sms_manager_mobile': '01812-345678',
+        })
+        wizard = self.env['mimsms.composer'].create({
+            'res_model': 'res.partner',
+            'res_ids': str(self.partner.ids),
+            'composition_mode1': 'single',
+            'message': 'Both recipients test',
+            'send_to_partner': True,
+            'send_to_manager': True,
+        })
+        wizard.action_send_sms()
+
+        queue = self.env['sms.queue'].search([
+            ('message', '=', 'Both recipients test'),
+            ('res_model', '=', 'res.partner'),
+            ('res_id', '=', self.partner.id),
+        ], order='id')
+        self.assertEqual(len(queue), 2)
+        self.assertEqual(set(queue.mapped('recipient_type')), {'partner', 'manager'})
+        self.assertEqual(
+            set(queue.mapped('mobile')),
+            {'8801712345678', '8801812345678'},
+        )
+        self.assertTrue(all(item.send_mode == 'dynamic' for item in queue))
+        self.assertEqual(
+            set(queue.mapped('history_id.recipient_type')),
+            {'partner', 'manager'},
+        )
+
+    def test_single_sms_requires_a_selected_destination(self):
+        wizard = self.env['mimsms.composer'].create({
+            'res_model': 'res.partner',
+            'res_ids': str(self.partner.ids),
+            'composition_mode1': 'single',
+            'message': 'No recipient test',
+            'send_to_partner': False,
+            'send_to_manager': False,
+        })
+        with self.assertRaises(UserError):
+            wizard.action_send_sms()
 
     def test_odoo_core_sms_template_renderer_is_not_overridden(self):
         rendered = self.env['sms.template']._render_template(

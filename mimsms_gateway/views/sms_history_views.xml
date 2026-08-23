@@ -18,6 +18,8 @@
                 <sheet>
                     <group>
                         <group>
+                            <field name="recipient_type"/>
+                            <field name="recipient_name"/>
                             <field name="mobile"/>
                             <field name="partner_id"/>
                             <field name="user_id"/>
@@ -57,8 +59,10 @@
                   decoration-danger="status == 'failed'"
                   decoration-muted="status == 'skipped'">
                 <field name="create_date"/>
+                <field name="recipient_type"/>
+                <field name="recipient_name"/>
                 <field name="mobile"/>
-                <field name="partner_id"/>
+                <field name="partner_id" optional="hide"/>
                 <field name="message"/>
                 <field name="status"/>
                 <field name="error_message" string="Failure / Skip Reason" optional="show"/>
