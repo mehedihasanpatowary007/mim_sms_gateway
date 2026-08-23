@@ -109,6 +109,10 @@ class TestMimsmsGateway(TransactionCase):
         action = self.env.ref('mimsms_gateway.action_contacts_send_mimsms')
         self.assertEqual(action.binding_model_id.model, 'res.partner')
         self.assertEqual(action.binding_view_types, 'list')
+        self.assertIn(
+            self.env.ref('mimsms_gateway.group_sms_gateway_user'),
+            action.group_ids,
+        )
 
     def test_odoo_core_sms_template_renderer_is_not_overridden(self):
         rendered = self.env['sms.template']._render_template(

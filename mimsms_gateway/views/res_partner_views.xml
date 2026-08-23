@@ -27,7 +27,7 @@
         <field name="target">new</field>
         <field name="binding_model_id" ref="base.model_res_partner"/>
         <field name="binding_view_types">list</field>
-        <field name="groups_id" eval="[(4, ref('mimsms_gateway.group_sms_gateway_user'))]"/>
+        <field name="group_ids" eval="[(4, ref('mimsms_gateway.group_sms_gateway_user'))]"/>
         <field name="context">{'default_composition_mode1': 'bulk'}</field>
     </record>
 </odoo>
