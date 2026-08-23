@@ -19,7 +19,7 @@
                             <field name="template_id" 
                                    string="SMS Template"
                                    options="{'no_create': True}"
-                                   domain="[('model', '=', res_model), ('company_id', '=', company_id)]"
+                                   domain="[('model', '=', res_model), ('company_ids', 'in', [company_id])]"
                                    invisible="not is_chatter_single and composition_mode1 != 'template'"
                                    placeholder="Select a template"/>
                         </group>

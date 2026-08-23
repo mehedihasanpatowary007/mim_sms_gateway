@@ -649,14 +649,13 @@ class SmsComposer(models.TransientModel):
         for record in records:
             if self.composition_mode1 == 'template' and self.template_id:
                 record_company = getattr(record, 'company_id', False) or self.env.company
-                if self.template_id.company_id != record_company:
+                if record_company not in self.template_id.company_ids:
                     raise UserError(_(
-                        'Template %s belongs to %s, but recipient %s belongs to %s.'
+                        'Template %s is not assigned to %s, the company of recipient %s.'
                     ) % (
                         self.template_id.display_name,
-                        self.template_id.company_id.display_name,
-                        record.display_name,
                         record_company.display_name,
+                        record.display_name,
                     ))
                 self.template_id._validate_placeholders()
                 message = self.template_id._render_template(self.template_id.body, record)

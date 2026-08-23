@@ -49,47 +49,26 @@ class MimsmsChatterController(http.Controller):
             record.check_access('read')
 
             if model == 'account.move' and record.move_type == 'out_invoice':
-                action = record.action_send_invoice_sms()
+                action_context = record.action_send_invoice_sms().get('context', {})
             elif model == 'stock.picking' and record.picking_type_code == 'outgoing':
-                action = record.action_send_delivery_sms()
+                action_context = record.action_send_delivery_sms().get('context', {})
             else:
-                composer_view = request.env.ref(
-                    'mimsms_gateway.view_sms_composer_form'
-                )
-                action = {
-                    'name': _('Send SMS'),
-                    'type': 'ir.actions.act_window',
-                    'res_model': 'mimsms.composer',
-                    'view_mode': 'form',
-                    'view_id': composer_view.id,
-                    'views': [[composer_view.id, 'form']],
-                    'target': 'new',
-                    'context': {
-                        'default_res_model': model,
-                        'default_res_ids': str(record.ids),
-                        'default_composition_mode1': 'single',
-                    },
+                action_context = {
+                    'default_res_model': model,
+                    'default_res_ids': str(record.ids),
+                    'default_composition_mode1': 'single',
                 }
 
-            # Odoo 19's action service preprocesses ``views`` with ``map``.
-            # Actions returned by the dedicated invoice/delivery methods only
-            # define ``view_mode``, so normalize every chatter action here.
-            composer_view = request.env.ref(
-                'mimsms_gateway.view_sms_composer_form'
-            )
-            action['view_id'] = composer_view.id
-            action['views'] = [[composer_view.id, 'form']]
-
-            # Chatter always targets the current record, so the composer is a
-            # focused single-recipient flow. Bulk/template modes remain
-            # available from their regular entry points.
-            action_context = dict(action.get('context', {}))
+            action_context = dict(action_context)
             action_context.update({
                 'default_composition_mode1': 'single',
                 'default_is_chatter_single': True,
             })
-            action['context'] = action_context
-            return {'success': True, 'action': action}
+            return {
+                'success': True,
+                'action_xmlid': 'mimsms_gateway.action_contacts_send_mimsms',
+                'context': action_context,
+            }
         except (AccessError, UserError) as error:
             return {'error': True, 'message': str(error)}
         except Exception:

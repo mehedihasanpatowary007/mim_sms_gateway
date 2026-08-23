@@ -43,7 +43,7 @@
     <record id="rule_sms_template_allowed_companies" model="ir.rule">
         <field name="name">SMS templates: allowed companies</field>
         <field name="model_id" ref="model_mimsms_template"/>
-        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+        <field name="domain_force">[('company_ids', 'in', company_ids)]</field>
         <field name="groups" eval="[(4, ref('group_sms_gateway_user'))]"/>
     </record>
 </odoo>

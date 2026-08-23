@@ -4,11 +4,14 @@ import { Chatter } from "@mail/chatter/web_portal/chatter";
 import { rpc } from "@web/core/network/rpc";
 import { _t } from "@web/core/l10n/translation";
 import { patch } from "@web/core/utils/patch";
+import { useService } from "@web/core/utils/hooks";
 import { onWillStart, useState } from "@odoo/owl";
 
 patch(Chatter.prototype, {
     setup() {
         super.setup(...arguments);
+        this.actionService = useService("action");
+        this.notificationService = useService("notification");
         this.smsGateway = useState({ available: false, opening: false });
         onWillStart(async () => {
             try {
@@ -34,16 +37,22 @@ patch(Chatter.prototype, {
                 res_id: this.props.threadId,
             });
             if (result?.error) {
-                this.env.services.notification.add(result.message || _t("Unable to open SMS composer"), {
+                this.notificationService.add(result.message || _t("Unable to open SMS composer"), {
                     type: "danger",
                 });
                 return;
             }
-            if (result?.action) {
-                await this.env.services.action.doAction(result.action);
+            if (result?.action_xmlid) {
+                await this.actionService.doAction(result.action_xmlid, {
+                    additionalContext: result.context || {},
+                });
+            } else if (result?.action) {
+                await this.actionService.doAction(result.action);
             }
-        } catch {
-            this.env.services.notification.add(_t("Unable to open the SMS composer"), {
+        } catch (error) {
+            console.error("Could not open MiMSMS composer", error);
+            const message = error?.data?.message || error?.message || _t("Unable to open the SMS composer");
+            this.notificationService.add(message, {
                 type: "danger",
             });
         } finally {

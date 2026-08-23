@@ -7,7 +7,7 @@
     <data noupdate="1">
         <record id="sms_template_invoice_generated" model="mimsms.template">
             <field name="name">Invoice Generated</field>
-            <field name="company_id" ref="base.main_company"/>
+            <field name="company_ids" eval="[(4, ref('base.main_company'))]"/>
             <field name="template_type">invoice</field>
             <field name="model_id" ref="account.model_account_move"/>
             <field name="body">Dear ${object.partner_id.name}, your Invoice ${object.name} for BDT ${object.amount_total} has been generated. Due Date: ${object.invoice_date_due}.
@@ -16,7 +16,7 @@ Bridge Chemie</field>
 
         <record id="sms_template_payment_received" model="mimsms.template">
             <field name="name">Payment Received</field>
-            <field name="company_id" ref="base.main_company"/>
+            <field name="company_ids" eval="[(4, ref('base.main_company'))]"/>
             <field name="template_type">payment</field>
             <field name="model_id" ref="account.model_account_payment"/>
             <field name="body">Dear ${object.partner_id.name}, we have received your payment of BDT ${object.amount} successfully. Ref: ${object.name}.
@@ -25,7 +25,7 @@ Bridge Chemie</field>
 
         <record id="sms_template_delivery" model="mimsms.template">
             <field name="name">Customer Delivery</field>
-            <field name="company_id" ref="base.main_company"/>
+            <field name="company_ids" eval="[(4, ref('base.main_company'))]"/>
             <field name="template_type">delivery</field>
             <field name="model_id" ref="stock.model_stock_picking"/>
             <field name="body">Dear ${object.partner_id.name}, your Delivery ${object.name} against Order ${object.origin} is ready for dispatch.
@@ -34,7 +34,7 @@ Bridge Chemie</field>
 
         <record id="sms_template_invoice_overdue" model="mimsms.template">
             <field name="name">Invoice Overdue</field>
-            <field name="company_id" ref="base.main_company"/>
+            <field name="company_ids" eval="[(4, ref('base.main_company'))]"/>
             <field name="template_type">overdue</field>
             <field name="model_id" ref="account.model_account_move"/>
             <field name="body">Dear ${object.partner_id.name}, payment of BDT ${object.amount_residual} for Invoice ${object.name} was due on ${object.invoice_date_due} and is now overdue. Please arrange payment at your earliest convenience.
@@ -43,7 +43,7 @@ Bridge Chemie</field>
 
         <record id="sms_template_monthly_closing" model="mimsms.template">
             <field name="name">Monthly Due</field>
-            <field name="company_id" ref="base.main_company"/>
+            <field name="company_ids" eval="[(4, ref('base.main_company'))]"/>
             <field name="template_type">monthly</field>
             <field name="model_id" ref="base.model_res_partner"/>
             <field name="body">Dear ${object.partner_name}, your account summary for ${object.month_name}: Opening Outstanding: BDT ${object.opening_outstanding}, Invoice Amount: BDT ${object.monthly_invoice_amount}, Payment Received: BDT ${object.monthly_payment}, Closing Outstanding: BDT ${object.closing_outstanding}.

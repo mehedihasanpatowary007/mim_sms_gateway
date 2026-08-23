@@ -14,8 +14,13 @@ class SmsTemplate(models.Model):
     _order = 'name'
 
     name = fields.Char(string='Template Name', required=True, translate=True)
-    company_id = fields.Many2one(
-        'res.company', string='Company', required=True, index=True,
+    company_ids = fields.Many2many(
+        'res.company',
+        'mimsms_template_company_rel',
+        'template_id',
+        'company_id',
+        string='Companies',
+        required=True,
         default=lambda self: self.env.company,
     )
     template_type = fields.Selection([
@@ -143,21 +148,30 @@ class SmsTemplate(models.Model):
         for template in self:
             template._validate_placeholders()
 
-    @api.constrains('active', 'company_id', 'template_type')
+    @api.constrains('active', 'company_ids', 'template_type')
     def _check_unique_automation_template(self):
         for template in self.filtered(lambda item: item.active and item.template_type != 'general'):
-            if self.search_count([
+            if not template.company_ids:
+                raise ValidationError(_('Select at least one company.'))
+            duplicate = self.sudo().search([
                 ('id', '!=', template.id),
                 ('active', '=', True),
-                ('company_id', '=', template.company_id.id),
+                ('company_ids', 'in', template.company_ids.ids),
                 ('template_type', '=', template.template_type),
-            ]):
+            ], limit=1)
+            if duplicate:
+                overlapping = template.company_ids & duplicate.company_ids
                 raise ValidationError(_(
                     'Only one active %s template is allowed for %s.'
                 ) % (
                     dict(self._fields['template_type'].selection)[template.template_type],
-                    template.company_id.display_name,
+                    ', '.join(overlapping.mapped('display_name')),
                 ))
+
+    @api.constrains('company_ids')
+    def _check_template_companies(self):
+        if any(not template.company_ids for template in self):
+            raise ValidationError(_('Select at least one company.'))
 
     @api.constrains('template_type', 'model_id')
     def _check_template_model(self):
@@ -215,13 +229,13 @@ class SmsTemplate(models.Model):
     @api.model
     def get_for_company(self, company, template_type, fallback_xmlid=None):
         template = self.search([
-            ('company_id', '=', company.id),
+            ('company_ids', 'in', [company.id]),
             ('template_type', '=', template_type),
             ('active', '=', True),
         ], order='id', limit=1)
         if not template and fallback_xmlid:
             fallback = self.env.ref(fallback_xmlid, raise_if_not_found=False)
-            if fallback and fallback.active and fallback.company_id == company:
+            if fallback and fallback.active and company in fallback.company_ids:
                 template = fallback
         if not template:
             raise UserError(_(
@@ -313,20 +327,18 @@ class SmsTemplate(models.Model):
                 )
                 for name, template_type, model_name, body in definitions:
                     template = self.sudo().search([
-                        ('company_id', '=', company.id),
+                        ('company_ids', 'in', [company.id]),
                         ('template_type', '=', template_type),
                     ], order='active desc, id', limit=1)
                     values = {
                         'name': name,
-                        'company_id': company.id,
                         'template_type': template_type,
                         'model_id': self.env['ir.model']._get(model_name).id,
                         'body': body,
                         'active': True,
                     }
-                    if template:
-                        template.write(values)
-                    else:
+                    if not template:
+                        values['company_ids'] = [(4, company.id)]
                         self.sudo().create(values)
         return True
 

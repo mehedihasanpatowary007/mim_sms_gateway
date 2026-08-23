@@ -71,9 +71,9 @@ class SmsQueue(models.Model):
         message = self.env['mimsms.template']._coerce_body_text(message)
         message = self.env['mimsms.composer']._validate_outbound_message(message, company)
         if template:
-            if template.company_id != company:
+            if company not in template.company_ids:
                 raise UserError(_(
-                    'Template %s does not belong to %s.'
+                    'Template %s is not assigned to %s.'
                 ) % (template.display_name, company.display_name))
             template._validate_placeholders()
 

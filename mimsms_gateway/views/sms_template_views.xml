@@ -6,7 +6,7 @@
         <field name="arch" type="xml">
             <list string="SMS Templates" decoration-muted="not active">
                 <field name="name"/>
-                <field name="company_id" groups="base.group_multi_company"/>
+                <field name="company_ids" widget="many2many_tags"/>
                 <field name="template_type"/>
                 <field name="model_id"/>
                 <field name="usage_count" optional="show"/>
@@ -34,7 +34,9 @@
                     </div>
                     <group>
                         <group>
-                            <field name="company_id" options="{'no_create': True}"/>
+                            <field name="company_ids"
+                                   widget="many2many_tags"
+                                   options="{'no_create': True}"/>
                             <field name="template_type"/>
                             <field name="model_id" options="{'no_create': True, 'no_open': True}"/>
                             <field name="model" invisible="1"/>
@@ -65,13 +67,12 @@
         <field name="arch" type="xml">
             <search string="SMS Templates">
                 <field name="name"/>
-                <field name="company_id"/>
+                <field name="company_ids"/>
                 <field name="template_type"/>
                 <field name="model_id"/>
                 <filter name="active" string="Active" domain="[('active', '=', True)]"/>
                 <separator/>
                 <group name="group_by">
-                    <filter name="group_company" string="Company" domain="[]" context="{'group_by': 'company_id'}"/>
                     <filter name="group_purpose" string="Purpose" domain="[]" context="{'group_by': 'template_type'}"/>
                     <filter name="group_model" string="Model" domain="[]" context="{'group_by': 'model_id'}"/>
                 </group>
