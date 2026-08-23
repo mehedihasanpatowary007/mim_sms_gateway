@@ -12,7 +12,7 @@
                   duplicate="false"
                   class="o_mimsms_history">
                 <header>
-                    <button name="action_resend" string="Resend" type="object" class="btn-primary" icon="fa-repeat" invisible="status == 'sent'"/>
+                    <button name="action_resend" string="Resend" type="object" class="btn-primary" icon="fa-repeat" invisible="status == 'sent' or status == 'queued' or status == 'draft'"/>
                     <field name="status" widget="statusbar"/>
                 </header>
                 <sheet>
@@ -33,8 +33,10 @@
                     <group string="Message">
                         <field name="message" widget="text" nolabel="1"/>
                     </group>
-                    <group string="Response" invisible="not response_message">
-                        <field name="response_message" nolabel="1"/>
+                    <group string="Response" invisible="not response_message and not error_message">
+                        <field name="response_message" invisible="not response_message"/>
+                        <field name="error_message" string="Failure / Skip Reason"
+                               invisible="not error_message"/>
                     </group>
                 </sheet>
             </form>
@@ -50,6 +52,7 @@
                   create="false"
                   edit="false"
                   delete="false"
+                  decoration-info="status == 'queued'"
                   decoration-success="status == 'sent'"
                   decoration-danger="status == 'failed'"
                   decoration-muted="status == 'skipped'">
@@ -58,6 +61,7 @@
                 <field name="partner_id"/>
                 <field name="message"/>
                 <field name="status"/>
+                <field name="error_message" string="Failure / Skip Reason" optional="show"/>
                 <field name="event_type"/>
                 <field name="user_id"/>
             </list>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_stock_quant_tree_inventory_backdated" model="ir.ui.view">
+        <field name="name">stock.quant.inventory.list.backdated</field>
+        <field name="model">stock.quant</field>
+        <field name="inherit_id" ref="stock.view_stock_quant_tree_inventory_editable"/>
+        <field name="arch" type="xml">
+            <xpath expr="//button[@name='action_apply_inventory']" position="attributes">
+                <attribute name="name">stock.action_stock_inventory_adjustement_name</attribute>
+                <attribute name="type">action</attribute>
+            </xpath>
+        </field>
+    </record>
+</odoo>

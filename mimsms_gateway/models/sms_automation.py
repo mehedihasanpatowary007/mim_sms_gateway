@@ -39,61 +39,48 @@ class SmsAutomation(models.AbstractModel):
     @api.model
     def _send(self, *, partner, message, event_key, event_type, company,
               source=None, template=None):
-        """Send one duplicate-safe automatic SMS without blocking business flows."""
+        """Queue one duplicate-safe automatic SMS without blocking business flows."""
         History = self.env['sms.history'].sudo()
+        self.env.cr.execute('SELECT pg_advisory_xact_lock(hashtext(%s))', [event_key])
         if History.search_count([('event_key', '=', event_key)]):
             return False
 
         mobile = self._partner_mobile(partner)
-        history = History.create_history(
-            mobile=mobile or 'N/A',
-            message=message,
-            partner_id=partner.commercial_partner_id.id,
-            template_id=template.id if template else False,
-            status='draft',
-            company_id=company.id,
-            res_model=source._name if source else False,
-            res_id=source.id if source else False,
-            event_type=event_type,
-            event_key=event_key,
-        )
         if not mobile:
-            history.write({'status': 'skipped', 'error_message': _('Customer has no mobile or phone number.')})
+            History.create_history(
+                mobile='N/A', message=message,
+                partner_id=partner.commercial_partner_id.id,
+                template_id=template.id if template else False,
+                status='skipped', company_id=company.id,
+                res_model=source._name if source else False,
+                res_id=source.id if source else False,
+                event_type=event_type, event_key=event_key,
+                error_message=_('Customer has no valid mobile or phone number.'),
+            )
             return False
-
-        config = self.env['mimsms.config'].get_active_config(company=company, raise_if_missing=False)
-        if not config:
-            history.write({
-                'status': 'skipped',
-                'error_message': _('No active SMS Gateway configuration was found for %s.') % company.display_name,
-            })
-            return False
-
         try:
-            response = config.send_sms(mobile, message)
-            success = str(response.get('statusCode')) == '200'
-            history.write({
-                'status': 'sent' if success else 'failed',
-                'response_code': response.get('statusCode'),
-                'response_message': response.get('statusMessage'),
-                'api_response': str(response),
-                'sent_date': fields.Datetime.now() if success else False,
-                'error_message': False if success else response.get('statusMessage'),
-            })
-            self._post_source_chatter_status(
-                source, success, mobile, message, response
+            self.env['sms.queue'].enqueue(
+                mobile=mobile,
+                message=message,
+                record=source or partner,
+                send_mode='dynamic',
+                template=template,
+                event_type=event_type,
+                event_key=event_key,
             )
-            return success
+            return True
         except Exception as error:
-            history.write({'status': 'failed', 'error_message': str(error)})
-            self._post_source_chatter_status(
-                source,
-                False,
-                mobile,
-                message,
-                {'statusMessage': str(error)},
+            History.create_history(
+                mobile=mobile, message=message,
+                partner_id=partner.commercial_partner_id.id,
+                template_id=template.id if template else False,
+                status='failed', company_id=company.id,
+                res_model=source._name if source else False,
+                res_id=source.id if source else False,
+                event_type=event_type, event_key=event_key,
+                error_message=str(error),
             )
-            _logger.exception('Automatic SMS failed for event %s', event_key)
+            _logger.exception('Could not queue automatic SMS for event %s', event_key)
             return False
 
     @api.model
@@ -106,9 +93,19 @@ class SmsAutomation(models.AbstractModel):
         month_start = today - relativedelta(months=1)
         month_end = today - relativedelta(days=1)
         month_label = month_start.strftime('%B %Y')
-        template = self.env.ref('mimsms_gateway.sms_template_monthly_closing')
-
         for company in self.env['res.company'].sudo().search([]):
+            config = self.env['mimsms.config'].get_active_config(
+                company=company, raise_if_missing=False
+            )
+            if not config or not config.monthly_sms_enabled:
+                continue
+            try:
+                template = self.env['mimsms.template'].get_for_company(
+                    company, 'monthly', 'mimsms_gateway.sms_template_monthly_closing'
+                )
+            except Exception:
+                _logger.exception('No monthly closing SMS template for %s', company.display_name)
+                continue
             self.env.cr.execute("""
                 SELECT partner.commercial_partner_id,
                        COALESCE(SUM(CASE WHEN line.date < %s THEN line.balance ELSE 0 END), 0) AS opening,
@@ -148,19 +145,18 @@ class SmsAutomation(models.AbstractModel):
                 invoiced = invoice_totals.get(partner.id, 0.0)
                 closing = values['closing']
                 paid = opening + invoiced - closing
-                if not any(abs(value) >= 0.005 for value in (opening, invoiced, paid, closing)):
+                # Send a monthly closing SMS only when the customer still owes
+                # money at month end. Zero or credit balances do not need a notice.
+                if closing <= 0.005:
                     continue
-                replacements = {
-                    '{{partner_name}}': partner.name or '',
-                    '{{month_name}}': month_label,
-                    '{{opening_outstanding}}': f'{opening:,.2f}',
-                    '{{monthly_invoice_amount}}': f'{invoiced:,.2f}',
-                    '{{monthly_payment}}': f'{paid:,.2f}',
-                    '{{closing_outstanding}}': f'{closing:,.2f}',
-                }
-                message = template.body
-                for token, value in replacements.items():
-                    message = message.replace(token, value)
+                message = template._replace_custom_placeholders(template.body, {
+                    'partner_name': partner.name or '',
+                    'month_name': month_label,
+                    'opening_outstanding': f'{opening:,.2f}',
+                    'monthly_invoice_amount': f'{invoiced:,.2f}',
+                    'monthly_payment': f'{paid:,.2f}',
+                    'closing_outstanding': f'{closing:,.2f}',
+                })
                 self._send(
                     partner=partner,
                     message=message,

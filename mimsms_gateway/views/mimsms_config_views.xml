@@ -1,17 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- MiMSMS Configuration Form View -->
     <record id="view_mimsms_config_form" model="ir.ui.view">
         <field name="name">mimsms.config.form</field>
         <field name="model">mimsms.config</field>
         <field name="arch" type="xml">
-            <form string="MiMSMS Configuration" class="o_mimsms_config">
-                <header>
-                    <button name="action_check_balance" 
-                            string="Check Balance" 
-                            type="object" 
-                            class="oe_highlight"/>
-                </header>
+            <form string="MiMSMS Configuration">
                 <sheet>
                     <div class="oe_button_box" name="button_box">
                         <button class="oe_stat_button" 
@@ -20,7 +13,7 @@
                                 icon="fa-money">
                             <div class="o_field_widget o_stat_info">
                                 <span class="o_stat_value">
-                                    ৳ <field name="balance" nolabel="1"/>
+                                    BDT <field name="balance" nolabel="1"/>
                                 </span>
                                 <span class="o_stat_text">Balance</span>
                             </div>
@@ -52,33 +45,22 @@
                         </group>
                     </group>
                     
-                    <notebook>
-                        <page string="Information" name="info">
-                            <group>
-                                <group string="Balance Information">
-                                    <field name="balance" readonly="1"/>
-                                    <field name="last_balance_check" readonly="1"/>
-                                </group>
-                            </group>
-                            <group>
-                                <div class="alert alert-info mt16 o_mimsms_help" role="alert">
-                                    <p><strong><i class="fa fa-info-circle me-2"/>How to use MiMSMS</strong></p>
-                                    <ul class="mb-0">
-                                        <li>Click "Check Balance" button to verify your SMS credits</li>
-                                        <li>Navigate to SMS menu to send messages to contacts or leads</li>
-                                        <li>View SMS history to track sent messages</li>
-                                        <li>Use SMS templates for quick message composition</li>
-                                    </ul>
-                                </div>
-                            </group>
-                        </page>
-                    </notebook>
+                    <group string="Automation">
+                        <group string="Automatic Messages">
+                            <field name="payment_sms_enabled" widget="boolean_toggle"/>
+                            <field name="overdue_sms_enabled" widget="boolean_toggle"/>
+                            <field name="monthly_sms_enabled" widget="boolean_toggle"/>
+                        </group>
+                        <group string="Delivery Controls">
+                            <field name="retry_delay_minutes"/>
+                            <field name="max_sms_parts"/>
+                        </group>
+                    </group>
                 </sheet>
             </form>
         </field>
     </record>
 
-    <!-- MiMSMS Configuration Tree View -->
     <record id="view_mimsms_config_list" model="ir.ui.view">
         <field name="name">mimsms.config.list</field>
         <field name="model">mimsms.config</field>
@@ -95,19 +77,10 @@
         </field>
     </record>
 
-    <!-- MiMSMS Configuration Action -->
     <record id="action_mimsms_config" model="ir.actions.act_window">
         <field name="name">MiMSMS Configuration</field>
         <field name="res_model">mimsms.config</field>
         <field name="view_mode">list,form</field>
         <field name="context">{}</field>
-        <field name="help" type="html">
-            <p class="o_view_nocontent_smiling_face">
-                Configure your MiMSMS API settings
-            </p>
-            <p>
-                Add your MiMSMS credentials to start sending SMS messages.
-            </p>
-        </field>
     </record>
 </odoo>

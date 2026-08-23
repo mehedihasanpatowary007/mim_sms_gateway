@@ -1,6 +1,6 @@
 {
     'name': 'MiMSMS Gateway',
-    'version': '19.0.1.0.0',
+    'version': '19.0.1.2.4',
     'category': 'Bridge Chemie',
     'summary': 'Send SMS via MiMSMS API - Single, Bulk & Template Support',
     'description': """
@@ -31,10 +31,11 @@
         'views/mimsms_config_views.xml',
         'views/sms_template_views.xml',
         'views/sms_history_views.xml',
+        'views/sms_queue_views.xml',
         'views/account_move_views.xml',
         'views/stock_picking_views.xml',
-        'views/res_partner_views.xml',
         'wizard/sms_composer_views.xml',
+        'views/res_partner_views.xml',
         'views/menus.xml',
     ],
     'assets': {

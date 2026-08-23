@@ -20,6 +20,12 @@
               action="action_sms_history"
               sequence="10"/>
 
+    <menuitem id="menu_sms_queue"
+              name="SMS Queue"
+              parent="menu_sms"
+              action="action_sms_queue"
+              sequence="15"/>
+
     <!-- SMS Templates Menu Item -->
     <menuitem id="menu_sms_template"
               name="SMS Templates"

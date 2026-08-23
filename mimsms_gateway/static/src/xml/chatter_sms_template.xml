@@ -6,7 +6,7 @@
         <xpath expr="//button[hasclass('o-mail-Chatter-activity')]" position="after">
             <button t-if="smsGateway.available and props.threadId"
                     type="button"
-                    class="btn btn-secondary text-nowrap ms-1 o_mimsms_chatter_button"
+                    class="btn btn-secondary text-nowrap ms-1"
                     t-att-class="{ 'my-2': !props.compactHeight }"
                     t-att-disabled="smsGateway.opening"
                     t-on-click="onMimsmsSendSms"

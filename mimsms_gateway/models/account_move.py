@@ -1,5 +1,9 @@
+import logging
+
 from odoo import api, fields, models, _
 from odoo.exceptions import UserError
+
+_logger = logging.getLogger(__name__)
 
 
 class AccountMove(models.Model):
@@ -12,7 +16,9 @@ class AccountMove(models.Model):
         if self.move_type != 'out_invoice' or self.state != 'posted':
             raise UserError(_('SMS can only be sent for a posted customer invoice.'))
 
-        template = self.env.ref('mimsms_gateway.sms_template_invoice_generated')
+        template = self.env['mimsms.template'].get_for_company(
+            self.company_id, 'invoice', 'mimsms_gateway.sms_template_invoice_generated'
+        )
         message = template._render_template(template.body, self)
         return {
             'name': _('Send Invoice SMS'),
@@ -25,6 +31,7 @@ class AccountMove(models.Model):
                 'default_res_ids': str(self.ids),
                 'default_composition_mode1': 'single',
                 'default_is_chatter_single': True,
+                'default_template_id': template.id,
                 'default_message': message,
             },
         }
@@ -43,9 +50,21 @@ class AccountMove(models.Model):
             ('invoice_date_due', '<', today),
             ('amount_residual', '>', 0),
         ])
-        template = self.env.ref('mimsms_gateway.sms_template_invoice_overdue')
         service = self.env['sms.automation']
         for invoice in invoices:
+            config = self.env['mimsms.config'].get_active_config(
+                company=invoice.company_id, raise_if_missing=False
+            )
+            if not config or not config.overdue_sms_enabled:
+                continue
+            try:
+                template = self.env['mimsms.template'].get_for_company(
+                    invoice.company_id, 'overdue',
+                    'mimsms_gateway.sms_template_invoice_overdue',
+                )
+            except UserError:
+                _logger.exception('No overdue SMS template for %s', invoice.company_id.display_name)
+                continue
             message = template._render_template(template.body, invoice)
             service._send(
                 partner=invoice.partner_id,

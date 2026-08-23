@@ -11,7 +11,7 @@
                         type="object"
                         icon="fa-mobile"
                         groups="mimsms_gateway.group_sms_gateway_user"
-                        invisible="picking_type_code != 'outgoing'"/>
+                        invisible="picking_type_code != 'outgoing' or state != 'done'"/>
             </xpath>
         </field>
     </record>

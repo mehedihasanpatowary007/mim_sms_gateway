@@ -15,6 +15,7 @@ class SmsHistory(models.Model):
     message = fields.Text(string='Message', required=True)
     status = fields.Selection([
         ('draft', 'Draft'),
+        ('queued', 'Queued'),
         ('sent', 'Sent'),
         ('failed', 'Failed'),
         ('skipped', 'Skipped'),
@@ -25,7 +26,7 @@ class SmsHistory(models.Model):
     api_response = fields.Text(string='Full API Response')
     
     partner_id = fields.Many2one('res.partner', string='Contact', ondelete='set null')
-    template_id = fields.Many2one('sms.template', string='Template Used', ondelete='set null')
+    template_id = fields.Many2one('mimsms.template', string='Template Used', ondelete='set null')
     user_id = fields.Many2one('res.users', string='Sent By', default=lambda self: self.env.user)
     
     sent_date = fields.Datetime(string='Sent Date')
@@ -57,6 +58,7 @@ class SmsHistory(models.Model):
     def create_history(self, mobile, message, partner_id=None,
                       template_id=None, status='draft', response=None, **extra_vals):
         """Create SMS history record"""
+        message = self.env['mimsms.template']._coerce_body_text(message)
         vals = {
             'mobile': mobile,
             'message': message,
@@ -83,43 +85,33 @@ class SmsHistory(models.Model):
         return self.create(vals)
     
     def action_resend(self):
-        """Resend failed SMS"""
+        """Queue a failed SMS again so the normal retry policy applies."""
         self.ensure_one()
         self.check_access('read')
         if not self.env.user.has_group('mimsms_gateway.group_sms_gateway_user'):
             raise UserError(_('You do not have permission to send SMS messages.'))
-        
-        config = self.env['mimsms.config'].get_active_config()
-        
-        try:
-            response = config.send_sms(self.mobile, self.message)
-            
-            self.sudo().write({
-                'status': 'sent' if str(response.get('statusCode')) == '200' else 'failed',
-                'response_code': response.get('statusCode'),
-                'response_message': response.get('statusMessage'),
-                'api_response': str(response),
-                'sent_date': fields.Datetime.now() if str(response.get('statusCode')) == '200' else False,
-                'error_message': response.get('statusMessage') if str(response.get('statusCode')) != '200' else False,
-            })
-            
-            if str(response.get('statusCode')) == '200':
-                return {
-                    'type': 'ir.actions.client',
-                    'tag': 'display_notification',
-                    'params': {
-                        'title': _('Success'),
-                        'message': _('SMS resent successfully'),
-                        'type': 'success',
-                    }
-                }
-        except Exception as e:
-            return {
-                'type': 'ir.actions.client',
-                'tag': 'display_notification',
-                'params': {
-                    'title': _('Error'),
-                    'message': str(e),
-                    'type': 'danger',
-                }
-            }
+        source = False
+        if self.res_model and self.res_model in self.env and self.res_id:
+            source = self.env[self.res_model].browse(self.res_id).exists()
+        source = source or self.partner_id
+        if not source:
+            raise UserError(_('The original SMS recipient is no longer available.'))
+        mobile = self.env['mimsms.composer']._normalize_phone_number(self.mobile)
+        if not mobile:
+            raise UserError(_('The stored phone number is not a valid Bangladesh mobile number.'))
+        self.env['sms.queue'].enqueue(
+            mobile=mobile,
+            message=self.message,
+            record=source,
+            send_mode='dynamic',
+            template=self.template_id,
+        )
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': _('SMS Queued'),
+                'message': _('The SMS was added to the queue for resend.'),
+                'type': 'success',
+            },
+        }

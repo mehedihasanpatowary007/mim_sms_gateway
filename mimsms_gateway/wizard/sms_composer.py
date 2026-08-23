@@ -1,6 +1,5 @@
 from odoo import api, fields, models, _
 from odoo.exceptions import UserError
-from odoo.tools import html_sanitize
 import logging
 import re
 import ast
@@ -50,10 +49,11 @@ class SmsComposer(models.TransientModel):
     
     res_model = fields.Char(string='Document Model')
     res_ids = fields.Char(string='Document IDs')
+    company_id = fields.Many2one('res.company', compute='_compute_company_id')
     
     # Message fields
     message = fields.Text(string='Message', required=True)
-    template_id = fields.Many2one('sms.template', string='SMS Template', 
+    template_id = fields.Many2one('mimsms.template', string='SMS Template', 
                                  domain="[('model', '=', res_model)]")
     
     # Recipients info
@@ -63,12 +63,70 @@ class SmsComposer(models.TransientModel):
     # Preview
     preview_mobile = fields.Char(string='Preview Mobile', compute='_compute_preview')
     preview_message = fields.Text(string='Preview Message', compute='_compute_preview')
+
+    # SMS length / segment calculation
+    character_count = fields.Integer(string='Characters', compute='_compute_sms_metrics')
+    sms_parts = fields.Integer(string='SMS Parts', compute='_compute_sms_metrics')
+    sms_encoding = fields.Char(string='Encoding', compute='_compute_sms_metrics')
     
     # ADDED: Helper fields to control visibility
     show_template = fields.Boolean(compute='_compute_visibility')
     show_bulk_info = fields.Boolean(compute='_compute_visibility')
     show_single_info = fields.Boolean(compute='_compute_visibility')
+
+    @api.depends('res_model', 'res_ids')
+    def _compute_company_id(self):
+        for wizard in self:
+            company = self.env.company
+            try:
+                records = wizard._get_recipient_records()
+                if records:
+                    company = getattr(records[0], 'company_id', False) or self.env.company
+            except UserError:
+                pass
+            wizard.company_id = company
     
+    @api.model
+    def _sms_metrics(self, text):
+        """Return (visible chars, SMS parts, encoding).
+
+        GSM-7 extension characters consume two septets. Any non-GSM
+        character (including Bangla) uses Unicode SMS limits.
+        """
+        text = self.env['mimsms.template']._coerce_body_text(text or '')
+        char_count = len(text)
+        if not text:
+            return 0, 0, 'GSM-7'
+
+        gsm_basic = set(
+            "@\u00a3$\u00a5\u00e8\u00e9\u00f9\u00ec\u00f2\u00c7\n"
+            "\u00d8\u00f8\r\u00c5\u00e5\u0394_\u03a6\u0393\u039b\u03a9"
+            "\u03a0\u03a8\u03a3\u0398\u039e !\"#\u00a4%&'()*+,-./"
+            "0123456789:;<=>?\u00a1ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+            "\u00c4\u00d6\u00d1\u00dc\u00a7\u00bfabcdefghijklmnopqrstuvwxyz"
+            "\u00e4\u00f6\u00f1\u00fc\u00e0"
+        )
+        gsm_ext = set('^{}\\[~]|\u20ac')
+
+        if all(ch in gsm_basic or ch in gsm_ext for ch in text):
+            units = sum(2 if ch in gsm_ext else 1 for ch in text)
+            parts = 1 if units <= 160 else (units + 152) // 153
+            return char_count, parts, 'GSM-7'
+
+        # UCS-2/UTF-16 units are the practical limit for Unicode SMS.
+        units = len(text.encode('utf-16-be')) // 2
+        parts = 1 if units <= 70 else (units + 66) // 67
+        return char_count, parts, 'Unicode'
+
+    @api.depends('message', 'preview_message', 'composition_mode1', 'template_id')
+    def _compute_sms_metrics(self):
+        for wizard in self:
+            text = wizard.preview_message if wizard.composition_mode1 == 'template' and wizard.preview_message else wizard.message
+            count, parts, encoding = wizard._sms_metrics(text)
+            wizard.character_count = count
+            wizard.sms_parts = parts
+            wizard.sms_encoding = encoding
+
     @api.depends('composition_mode1')
     def _compute_visibility(self):
         """Control which UI elements to show based on composition mode"""
@@ -149,38 +207,41 @@ class SmsComposer(models.TransientModel):
         return defaults
     
     def _normalize_phone_number(self, phone):
-        """
-        Normalize phone number to standard format without + prefix
-        Handles formats like:
-        - +8801911324774 -> 8801911324774
-        - 8801911324774 -> 8801911324774
-        - 01911324774 -> 8801911324774 (adds country code if missing)
-        """
+        """Return a validated Bangladesh mobile number in 8801XXXXXXXXX form."""
         if not phone:
             return False
-        
-        # Remove all non-digit characters except +
         phone = str(phone).strip()
-        
-        # Remove spaces, dashes, parentheses
-        phone = re.sub(r'[\s\-\(\)]', '', phone)
-        
-        # If starts with +, remove it
+        if not re.fullmatch(r'[+0-9\s().-]+', phone):
+            return False
+        phone = re.sub(r'[\s().-]', '', phone)
         if phone.startswith('+'):
             phone = phone[1:]
-        
-        # If number starts with 0 and is 11 digits (Bangladesh local format)
-        # Add country code 880
-        if phone.startswith('0') and len(phone) == 11:
+        elif phone.startswith('00'):
+            phone = phone[2:]
+
+        if re.fullmatch(r'01[3-9][0-9]{8}', phone):
             phone = '880' + phone[1:]
-            _logger.info(f"Normalized local number to: {phone}")
-        
-        # If number doesn't start with 880 and is 10 digits, add 880
-        elif not phone.startswith('880') and len(phone) == 10:
+        elif re.fullmatch(r'1[3-9][0-9]{8}', phone):
             phone = '880' + phone
-            _logger.info(f"Added country code: {phone}")
-        
-        return phone if phone else False
+        if not re.fullmatch(r'8801[3-9][0-9]{8}', phone):
+            return False
+        return phone
+
+    def _validate_outbound_message(self, message, company):
+        message = self.env['mimsms.template']._coerce_body_text(message).strip()
+        if not message:
+            raise UserError(_('The SMS message cannot be empty.'))
+        if re.search(r'\{\{|\}\}|\$\{', message):
+            raise UserError(_(
+                'The message contains an unresolved or malformed template placeholder.'
+            ))
+        config = self.env['mimsms.config'].get_active_config(company=company)
+        _count, parts, _encoding = self._sms_metrics(message)
+        if parts > config.max_sms_parts:
+            raise UserError(_(
+                'This message uses %d SMS parts. The configured maximum for %s is %d.'
+            ) % (parts, company.display_name, config.max_sms_parts))
+        return message
     
     def _get_mobile_number(self, record):
         """Get mobile number from record, trying different field names"""
@@ -194,7 +255,7 @@ class SmsComposer(models.TransientModel):
                         normalized = self._normalize_phone_number(value)
                         _logger.info(f"Original: {value} -> Normalized: {normalized}")
                         return normalized
-                except:
+                except Exception:
                     continue
         if hasattr(record, 'partner_id') and record.partner_id:
             partner = record.partner_id.commercial_partner_id
@@ -283,7 +344,7 @@ class SmsComposer(models.TransientModel):
     @api.onchange('template_id')
     def _onchange_template_id(self):
         if self.template_id:
-            self.message = self.template_id.body
+            self.message = self.template_id._coerce_body_text(self.template_id.body)
             self.composition_mode1 = 'template'
         elif self.is_chatter_single:
             self.composition_mode1 = 'single'
@@ -317,29 +378,29 @@ class SmsComposer(models.TransientModel):
     def _log_sms_success(self, mode, recipient_count, mobiles, message_preview, response):
         """Log SMS success with highlighted format"""
         _logger.info("\n" + "=" * 100)
-        _logger.info("🎉 SMS SENT SUCCESSFULLY! 🎉")
+        _logger.info("SMS SENT SUCCESSFULLY")
         _logger.info("=" * 100)
-        _logger.info(f"📋 Mode: {mode.upper()}")
-        _logger.info(f"👥 Total Recipients: {recipient_count}")
-        _logger.info(f"📱 Mobile Numbers: {', '.join(mobiles)}")
-        _logger.info(f"💬 Message Preview: {message_preview[:150]}..." if len(message_preview) > 150 else f"💬 Message: {message_preview}")
-        _logger.info(f"✅ Status Code: {response.get('statusCode')}")
-        _logger.info(f"📝 Status Message: {response.get('statusMessage')}")
-        _logger.info(f"📊 Response: {response}")
+        _logger.info(f"Mode: {mode.upper()}")
+        _logger.info(f"Total Recipients: {recipient_count}")
+        _logger.info(f"Mobile Numbers: {', '.join(mobiles)}")
+        _logger.info(f"Message Preview: {message_preview[:150]}..." if len(message_preview) > 150 else f"Message: {message_preview}")
+        _logger.info(f"Status Code: {response.get('statusCode')}")
+        _logger.info(f"Status Message: {response.get('statusMessage')}")
+        _logger.info(f"Response: {response}")
         _logger.info("=" * 100 + "\n")
     
     def _log_sms_failure(self, mode, recipient_count, mobiles, message_preview, response):
         """Log SMS failure with highlighted format"""
         _logger.error("\n" + "=" * 100)
-        _logger.error("❌ SMS SENDING FAILED! ❌")
+        _logger.error("SMS SENDING FAILED")
         _logger.error("=" * 100)
-        _logger.error(f"📋 Mode: {mode.upper()}")
-        _logger.error(f"👥 Total Recipients: {recipient_count}")
-        _logger.error(f"📱 Mobile Numbers: {', '.join(mobiles)}")
-        _logger.error(f"💬 Message Preview: {message_preview[:150]}..." if len(message_preview) > 150 else f"💬 Message: {message_preview}")
-        _logger.error(f"⛔ Status Code: {response.get('statusCode')}")
-        _logger.error(f"📝 Status Message: {response.get('statusMessage')}")
-        _logger.error(f"📊 Error Response: {response}")
+        _logger.error(f"Mode: {mode.upper()}")
+        _logger.error(f"Total Recipients: {recipient_count}")
+        _logger.error(f"Mobile Numbers: {', '.join(mobiles)}")
+        _logger.error(f"Message Preview: {message_preview[:150]}..." if len(message_preview) > 150 else f"Message: {message_preview}")
+        _logger.error(f"Status Code: {response.get('statusCode')}")
+        _logger.error(f"Status Message: {response.get('statusMessage')}")
+        _logger.error(f"Error Response: {response}")
         _logger.error("=" * 100 + "\n")
     
     def _post_chatter_message(self, record, success, mobile, message_preview, response):
@@ -358,7 +419,7 @@ class SmsComposer(models.TransientModel):
                     <table role="presentation" style="width: 100%%; border-collapse: collapse;">
                         <tr>
                             <td style="padding: 11px 12px; border-bottom: 1px solid #edf1ee;">
-                                <span title="Sent" style="display: inline-block; color: #176b2c; font-size: 20px; line-height: 1; font-weight: 800; margin-right: 7px; vertical-align: middle;">✓</span>
+                                <span title="Sent" style="display: inline-block; color: #176b2c; font-size: 20px; line-height: 1; font-weight: 800; margin-right: 7px; vertical-align: middle;">&#10003;</span>
                                 <strong style="color: #26382d;">SMS</strong>
                             </td>
                             <td style="padding: 11px 12px; border-bottom: 1px solid #edf1ee; text-align: right;">
@@ -462,66 +523,64 @@ class SmsComposer(models.TransientModel):
                 )
     
     def action_send_sms(self):
-        """Send SMS to recipients"""
+        """Send a single SMS immediately; queue bulk/personalized sends."""
         self.ensure_one()
         self._check_sms_user()
-        
-        _logger.info("=== Starting SMS Send Process ===")
-        _logger.info(f"res_model: {self.res_model}")
-        _logger.info(f"res_ids: {self.res_ids}")
-        _logger.info(f"composition_mode: {self.composition_mode1}")
-        
-        # Validate required fields
+
         if not self.res_model:
             raise UserError(_('Document Model is required'))
-        
         if not self.res_ids:
             raise UserError(_('No recipients selected'))
-        
-        # Get configuration
-        try:
-            config = self.env['mimsms.config'].get_active_config()
-            _logger.info(f"SMS Config found: {config.username}")
-        except Exception as e:
-            _logger.error(f"Failed to get SMS configuration: {str(e)}")
-            raise UserError(_(
-                'SMS configuration not found.\n\n'
-                'Please go to: SMS → Configuration → SMS Configuration\n'
-                'and create an active SMS configuration with your MiMSMS credentials.'
-            ))
-        
-        # Get records
+
         try:
             records = self._get_recipient_records()
-            _logger.info(f"Found {len(records)} records")
-        except Exception as e:
-            _logger.error(f"Failed to parse records: {str(e)}")
-            raise UserError(_('Failed to parse recipient records: %s') % str(e))
-        
-        # Prepare SMS data
+        except Exception as error:
+            _logger.error('Failed to parse SMS recipient records: %s', error)
+            raise UserError(_('Failed to parse recipient records: %s') % str(error))
+
         sms_data = []
+        skipped_count = 0
         for record in records:
             mobile = self._get_mobile_number(record)
-            _logger.info(f"Record {record.id} - mobile: {mobile}")
-            
-            if not mobile:
-                _logger.warning(f"Record {record.id} has no mobile number")
-                continue
-            
-            # Get message for this record
             if self.composition_mode1 == 'template' and self.template_id:
+                record_company = getattr(record, 'company_id', False) or self.env.company
+                if self.template_id.company_id != record_company:
+                    raise UserError(_(
+                        'Template %s belongs to %s, but recipient %s belongs to %s.'
+                    ) % (
+                        self.template_id.display_name,
+                        self.template_id.company_id.display_name,
+                        record.display_name,
+                        record_company.display_name,
+                    ))
+                self.template_id._validate_placeholders()
                 message = self.template_id._render_template(self.template_id.body, record)
             else:
-                message = self.message
-            
+                message = self.env['mimsms.template']._coerce_body_text(self.message)
+
+            if not mobile:
+                links = self._get_history_links(record)
+                partner = record if record._name == 'res.partner' else getattr(record, 'partner_id', False)
+                self.env['sms.history'].create_history(
+                    mobile='N/A',
+                    message=message,
+                    template_id=self.template_id.id if self.template_id else False,
+                    status='skipped',
+                    error_message=_('Customer has no valid Bangladesh mobile number.'),
+                    **links,
+                )
+                skipped_count += 1
+                continue
+
             sms_data.append({
                 'record': record,
                 'mobile': mobile,
-                'message': message
+                'message': self._validate_outbound_message(
+                    message,
+                    getattr(record, 'company_id', False) or self.env.company,
+                ),
             })
-        
-        _logger.info(f"Prepared SMS data for {len(sms_data)} recipients")
-        
+
         if not sms_data:
             raise UserError(_('No valid mobile numbers found in selected records'))
 
@@ -530,211 +589,29 @@ class SmsComposer(models.TransientModel):
                 'Single SMS mode requires exactly one recipient. '
                 'Please select Bulk SMS for multiple recipients.'
             ))
-        
-        # Send SMS
-        success_count = 0
-        failed_count = 0
-        
-        try:
-            # Determine sending mode
-            # 'single' = send to one recipient (supports dynamic content)
-            # 'bulk' = send same message to all at once
-            # 'template' = use template with dynamic content
-            
-            if self.composition_mode1 == 'single':
-                # Single SMS to one recipient
-                data = sms_data[0]
-                _logger.info(f"Sending single SMS to {data['mobile']}")
-                response = config.send_sms(data['mobile'], data['message'])
-                
-                # Create history
-                self.env['sms.history'].create_history(
-                    mobile=data['mobile'],
-                    message=data['message'],
-                    template_id=self.template_id.id if self.template_id else False,
-                    response=response,
-                    **self._get_history_links(data['record']),
-                )
-                
-                if str(response.get('statusCode')) == '200':
-                    success_count = 1
-                    # Log success with highlight
-                    self._log_sms_success(
-                        mode='SINGLE',
-                        recipient_count=1,
-                        mobiles=[data['mobile']],
-                        message_preview=data['message'],
-                        response=response
-                    )
-                    # Post to chatter
-                    self._post_chatter_message(
-                        record=data['record'],
-                        success=True,
-                        mobile=data['mobile'],
-                        message_preview=data['message'],
-                        response=response
-                    )
-                else:
-                    failed_count = 1
-                    # Log failure with highlight
-                    self._log_sms_failure(
-                        mode='SINGLE',
-                        recipient_count=1,
-                        mobiles=[data['mobile']],
-                        message_preview=data['message'],
-                        response=response
-                    )
-                    # Post to chatter
-                    self._post_chatter_message(
-                        record=data['record'],
-                        success=False,
-                        mobile=data['mobile'],
-                        message_preview=data['message'],
-                        response=response
-                    )
-                    
-            elif self.composition_mode1 == 'bulk':
-                # Bulk SMS (same message to all) - uses OneToMany API
-                mobiles = [d['mobile'] for d in sms_data]
-                _logger.info(f"Sending bulk SMS to {len(mobiles)} recipients")
-                response = config.send_bulk_sms(mobiles, self.message)
-                
-                # Create history for each
-                for data in sms_data:
-                    self.env['sms.history'].create_history(
-                        mobile=data['mobile'],
-                        message=data['message'],
-                        template_id=self.template_id.id if self.template_id else False,
-                        response=response,
-                        **self._get_history_links(data['record']),
-                    )
-                
-                if str(response.get('statusCode')) == '200':
-                    success_count = len(sms_data)
-                    # Log success with highlight
-                    self._log_sms_success(
-                        mode='BULK',
-                        recipient_count=len(sms_data),
-                        mobiles=mobiles,
-                        message_preview=self.message,
-                        response=response
-                    )
-                    # Post to chatter for each record
-                    for data in sms_data:
-                        self._post_chatter_message(
-                            record=data['record'],
-                            success=True,
-                            mobile=data['mobile'],
-                            message_preview=data['message'],
-                            response=response
-                        )
-                else:
-                    failed_count = len(sms_data)
-                    # Log failure with highlight
-                    self._log_sms_failure(
-                        mode='BULK',
-                        recipient_count=len(sms_data),
-                        mobiles=mobiles,
-                        message_preview=self.message,
-                        response=response
-                    )
-                    # Post to chatter for each record
-                    for data in sms_data:
-                        self._post_chatter_message(
-                            record=data['record'],
-                            success=False,
-                            mobile=data['mobile'],
-                            message_preview=data['message'],
-                            response=response
-                        )
-                    
-            elif self.composition_mode1 == 'template':
-                # Template mode with dynamic content - uses DSMS API for personalization
-                api_sms_data = [{'MobNumber': d['mobile'], 'Message': d['message']} 
-                               for d in sms_data]
-                mobiles = [d['mobile'] for d in sms_data]
-                _logger.info(f"Sending template SMS to {len(api_sms_data)} recipients")
-                response = config.send_dynamic_sms(api_sms_data)
-                
-                # Create history for each
-                for data in sms_data:
-                    self.env['sms.history'].create_history(
-                        mobile=data['mobile'],
-                        message=data['message'],
-                        template_id=self.template_id.id if self.template_id else False,
-                        response=response,
-                        **self._get_history_links(data['record']),
-                    )
-                
-                if str(response.get('statusCode')) == '200':
-                    success_count = len(sms_data)
-                    # Log success with highlight
-                    self._log_sms_success(
-                        mode='TEMPLATE',
-                        recipient_count=len(sms_data),
-                        mobiles=mobiles,
-                        message_preview=sms_data[0]['message'] if sms_data else '',
-                        response=response
-                    )
-                    # Post to chatter for each record
-                    for data in sms_data:
-                        self._post_chatter_message(
-                            record=data['record'],
-                            success=True,
-                            mobile=data['mobile'],
-                            message_preview=data['message'],
-                            response=response
-                        )
-                else:
-                    failed_count = len(sms_data)
-                    # Log failure with highlight
-                    self._log_sms_failure(
-                        mode='TEMPLATE',
-                        recipient_count=len(sms_data),
-                        mobiles=mobiles,
-                        message_preview=sms_data[0]['message'] if sms_data else '',
-                        response=response
-                    )
-                    # Post to chatter for each record
-                    for data in sms_data:
-                        self._post_chatter_message(
-                            record=data['record'],
-                            success=False,
-                            mobile=data['mobile'],
-                            message_preview=data['message'],
-                            response=response
-                        )
-            
-            # Show notification
-            if success_count > 0:
-                message = _('%d SMS sent successfully') % success_count
-                if failed_count > 0:
-                    message += _(', %d failed') % failed_count
-                
-                return {
-                    'type': 'ir.actions.client',
-                    'tag': 'display_notification',
-                    'params': {
-                        'title': _('SMS Sent'),
-                        'message': message,
-                        'type': 'success',
-                        'sticky': False,
-                        'next': {'type': 'ir.actions.act_window_close'},
-                    }
-                }
-            else:
-                error_msg = response.get('statusMessage', 'Unknown error') if response else 'No response'
-                return {
-                    'type': 'ir.actions.client',
-                    'tag': 'display_notification',
-                    'params': {
-                        'title': _('Failed'),
-                        'message': _('Failed to send SMS: %s') % error_msg,
-                        'type': 'danger',
-                        'sticky': True,
-                    }
-                }
-                
-        except Exception as e:
-            _logger.error(f"SMS sending failed: {str(e)}", exc_info=True)
-            raise UserError(_('Failed to send SMS: %s') % str(e))
+
+        send_mode = 'bulk' if self.composition_mode1 == 'bulk' else 'dynamic'
+        Queue = self.env['sms.queue']
+        for data in sms_data:
+            Queue.enqueue(
+                mobile=data['mobile'],
+                message=data['message'],
+                record=data['record'],
+                send_mode=send_mode,
+                template=self.template_id,
+            )
+
+        notification = _('%d SMS added to the queue') % len(sms_data)
+        if skipped_count:
+            notification += _(', %d skipped because no valid mobile number was found') % skipped_count
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': _('SMS Queued'),
+                'message': notification,
+                'type': 'success',
+                'sticky': False,
+                'next': {'type': 'ir.actions.act_window_close'},
+            },
+        }

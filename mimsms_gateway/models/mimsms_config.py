@@ -13,7 +13,10 @@ class MimsmsConfig(models.Model):
     _rec_name = 'username'
 
     username = fields.Char(string='Username (Email)', required=True, tracking=True)
-    apikey = fields.Char(string='API Key', required=True, groups='mimsms_gateway.group_sms_gateway_manager')
+    apikey = fields.Char(
+        string='API Key', required=True, copy=False,
+        groups='mimsms_gateway.group_sms_gateway_manager',
+    )
     sender_id = fields.Char(string='Sender ID', required=True, tracking=True)
     base_url = fields.Char(
         string='Base URL',
@@ -31,6 +34,25 @@ class MimsmsConfig(models.Model):
         string='Companies',
         help='Leave empty to use this configuration as the global fallback.'
     )
+    payment_sms_enabled = fields.Boolean(string='Payment Received SMS', default=True)
+    overdue_sms_enabled = fields.Boolean(string='Invoice Overdue SMS', default=True)
+    monthly_sms_enabled = fields.Boolean(string='Monthly Closing SMS', default=True)
+    retry_delay_minutes = fields.Integer(
+        string='Retry Delay (Minutes)', default=5, required=True,
+        help='Failed messages are retried twice after this delay.',
+    )
+    max_sms_parts = fields.Integer(
+        string='Maximum SMS Parts', default=6, required=True,
+        help='Messages exceeding this number of parts are rejected before queueing.',
+    )
+
+    @api.constrains('retry_delay_minutes', 'max_sms_parts')
+    def _check_sms_limits(self):
+        for config in self:
+            if config.retry_delay_minutes < 1:
+                raise ValidationError(_('Retry delay must be at least one minute.'))
+            if not 1 <= config.max_sms_parts <= 10:
+                raise ValidationError(_('Maximum SMS parts must be between 1 and 10.'))
 
     @api.constrains('active', 'company_ids')
     def _check_active_company_scope(self):
@@ -115,7 +137,7 @@ class MimsmsConfig(models.Model):
                     'tag': 'display_notification',
                     'params': {
                         'title': _('Balance Check'),
-                        'message': _('Current Balance: ৳%s') % self.balance,
+                        'message': _('Current Balance: BDT %s') % self.balance,
                         'type': 'success',
                         'sticky': False,
                     }
@@ -141,6 +163,7 @@ class MimsmsConfig(models.Model):
     def send_sms(self, mobile, message, transaction_type='T'):
         """Send single SMS"""
         self.ensure_one()
+        message = self.env['mimsms.template']._coerce_body_text(message)
         
         payload = {
             "UserName": self.username,
@@ -169,6 +192,7 @@ class MimsmsConfig(models.Model):
     def send_bulk_sms(self, mobiles, message):
         """Send same message to multiple numbers"""
         self.ensure_one()
+        message = self.env['mimsms.template']._coerce_body_text(message)
         
         mobile_numbers = ','.join(mobiles)
         
@@ -199,6 +223,10 @@ class MimsmsConfig(models.Model):
     def send_dynamic_sms(self, sms_data):
         """Send different messages to different numbers"""
         self.ensure_one()
+        sms_data = [
+            {**item, 'Message': self.env['mimsms.template']._coerce_body_text(item.get('Message'))}
+            for item in sms_data
+        ]
         
         payload = {
             "UserName": self.username,

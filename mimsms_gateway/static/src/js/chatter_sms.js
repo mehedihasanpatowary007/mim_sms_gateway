@@ -11,11 +11,15 @@ patch(Chatter.prototype, {
         super.setup(...arguments);
         this.smsGateway = useState({ available: false, opening: false });
         onWillStart(async () => {
-            const result = await rpc("/mimsms_gateway/chatter/availability", {
-                model: this.props.threadModel,
-                res_id: this.props.threadId,
-            });
-            this.smsGateway.available = Boolean(result?.available);
+            try {
+                const result = await rpc("/mimsms_gateway/chatter/availability", {
+                    model: this.props.threadModel,
+                    res_id: this.props.threadId,
+                });
+                this.smsGateway.available = Boolean(result?.available);
+            } catch {
+                this.smsGateway.available = false;
+            }
         });
     },
 
@@ -38,6 +42,10 @@ patch(Chatter.prototype, {
             if (result?.action) {
                 await this.env.services.action.doAction(result.action);
             }
+        } catch {
+            this.env.services.notification.add(_t("Unable to open the SMS composer"), {
+                type: "danger",
+            });
         } finally {
             this.smsGateway.opening = false;
         }

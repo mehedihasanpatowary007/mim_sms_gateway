@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_sms_queue_list" model="ir.ui.view">
+        <field name="name">sms.queue.list</field>
+        <field name="model">sms.queue</field>
+        <field name="arch" type="xml">
+            <list string="SMS Queue" create="false" edit="false" delete="false"
+                  decoration-info="state == 'queued'"
+                  decoration-success="state == 'sent'"
+                  decoration-danger="state == 'failed'"
+                  decoration-muted="state == 'skipped'">
+                <field name="create_date"/>
+                <field name="mobile"/>
+                <field name="partner_id"/>
+                <field name="send_mode"/>
+                <field name="message"/>
+                <field name="state"/>
+                <field name="error_message" string="Failure / Skip Reason" optional="show"/>
+                <field name="attempts"/>
+                <field name="next_attempt_at" optional="show"/>
+                <field name="sent_date"/>
+                <field name="user_id"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_sms_queue_form" model="ir.ui.view">
+        <field name="name">sms.queue.form</field>
+        <field name="model">sms.queue</field>
+        <field name="arch" type="xml">
+            <form string="SMS Queue" create="false" edit="false" delete="false">
+                <header>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="mobile"/>
+                            <field name="partner_id"/>
+                            <field name="company_id"/>
+                            <field name="send_mode"/>
+                            <field name="user_id"/>
+                        </group>
+                        <group>
+                            <field name="template_id"/>
+                            <field name="attempts"/>
+                            <field name="last_attempt"/>
+                            <field name="next_attempt_at"/>
+                            <field name="sent_date"/>
+                            <field name="response_code"/>
+                        </group>
+                    </group>
+                    <group string="Message">
+                        <field name="message" nolabel="1"/>
+                    </group>
+                    <group string="Response" invisible="not response_message and not error_message">
+                        <field name="response_message"/>
+                        <field name="error_message" string="Failure / Skip Reason"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_sms_queue" model="ir.actions.act_window">
+        <field name="name">SMS Queue</field>
+        <field name="res_model">sms.queue</field>
+        <field name="view_mode">list,form</field>
+    </record>
+</odoo>
