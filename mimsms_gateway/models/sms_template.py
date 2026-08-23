@@ -281,65 +281,82 @@ class SmsTemplate(models.Model):
 
     @api.model
     def ensure_company_templates(self):
-        """Keep the five client-approved templates for each target company."""
-        company_templates = (
-            ('Bridge Chemie', 'Bridge Chemie'),
-            ('Bridge Industrial Technology', 'Bridge Industrial Technology'),
-        )
-        for company_match, footer in company_templates:
-            companies = self.env['res.company'].sudo().search([
-                ('name', 'ilike', company_match),
-            ])
-            for company in companies:
-                definitions = (
-                    (
-                        'Invoice Generated', 'invoice', 'account.move',
-                        'Dear ${object.partner_id.name}, your Invoice ${object.name} '
-                        'for BDT ${object.amount_total} has been generated. Due Date: '
-                        '${object.invoice_date_due}.\n%s' % footer,
-                    ),
-                    (
-                        'Payment Received', 'payment', 'account.payment',
-                        'Dear ${object.partner_id.name}, we have received your payment '
-                        'of BDT ${object.amount} successfully. Ref: ${object.name}.\n%s' % footer,
-                    ),
-                    (
-                        'Customer Delivery', 'delivery', 'stock.picking',
-                        'Dear ${object.partner_id.name}, your Delivery ${object.name} '
-                        'against Order ${object.origin} is ready for dispatch.\n%s' % footer,
-                    ),
-                    (
-                        'Invoice Overdue', 'overdue', 'account.move',
-                        'Dear ${object.partner_id.name}, payment of BDT '
-                        '${object.amount_residual} for Invoice ${object.name} was due on '
-                        '${object.invoice_date_due} and is now overdue. Please arrange '
-                        'payment at your earliest convenience.\n%s' % footer,
-                    ),
-                    (
-                        'Monthly Due', 'monthly', 'res.partner',
-                        'Dear ${object.partner_name}, your account summary for '
-                        '${object.month_name}: Opening Outstanding: BDT '
-                        '${object.opening_outstanding}, Invoice Amount: BDT '
-                        '${object.monthly_invoice_amount}, Payment Received: BDT '
-                        '${object.monthly_payment}, Closing Outstanding: BDT '
-                        '${object.closing_outstanding}.\n%s' % footer,
-                    ),
-                )
-                for name, template_type, model_name, body in definitions:
-                    template = self.sudo().search([
-                        ('company_ids', 'in', [company.id]),
-                        ('template_type', '=', template_type),
-                    ], order='active desc, id', limit=1)
-                    values = {
-                        'name': name,
-                        'template_type': template_type,
-                        'model_id': self.env['ir.model']._get(model_name).id,
-                        'body': body,
-                        'active': True,
-                    }
-                    if not template:
-                        values['company_ids'] = [(4, company.id)]
-                        self.sudo().create(values)
+        """Ensure every company has the five client-approved templates."""
+        companies = self.env['res.company'].sudo().search([], order='id')
+        if not companies:
+            return True
+
+        main_company = self.env.ref('base.main_company', raise_if_not_found=False)
+        if main_company in companies:
+            companies = main_company + (companies - main_company)
+
+        for company in companies:
+            company_name = (company.name or '').lower()
+            footer = (
+                'Bridge Industrial Technology'
+                if 'industrial' in company_name or 'idustrial' in company_name
+                else 'Bridge Chemie'
+            )
+            definitions = (
+                (
+                    'Invoice Generated', 'invoice', 'account.move',
+                    'Dear ${object.partner_id.name}, your Invoice ${object.name} '
+                    'for BDT ${object.amount_total} has been generated. Due Date: '
+                    '${object.invoice_date_due}.\n%s' % footer,
+                ),
+                (
+                    'Payment Received', 'payment', 'account.payment',
+                    'Dear ${object.partner_id.name}, we have received your payment '
+                    'of BDT ${object.amount} successfully. Ref: ${object.name}.\n%s' % footer,
+                ),
+                (
+                    'Customer Delivery', 'delivery', 'stock.picking',
+                    'Dear ${object.partner_id.name}, your Delivery ${object.name} '
+                    'against Order ${object.origin} is ready for dispatch.\n%s' % footer,
+                ),
+                (
+                    'Invoice Overdue', 'overdue', 'account.move',
+                    'Dear ${object.partner_id.name}, payment of BDT '
+                    '${object.amount_residual} for Invoice ${object.name} was due on '
+                    '${object.invoice_date_due} and is now overdue. Please arrange '
+                    'payment at your earliest convenience.\n%s' % footer,
+                ),
+                (
+                    'Monthly Due', 'monthly', 'res.partner',
+                    'Dear ${object.partner_name}, your account summary for '
+                    '${object.month_name}: Opening Outstanding: BDT '
+                    '${object.opening_outstanding}, Invoice Amount: BDT '
+                    '${object.monthly_invoice_amount}, Payment Received: BDT '
+                    '${object.monthly_payment}, Closing Outstanding: BDT '
+                    '${object.closing_outstanding}.\n%s' % footer,
+                ),
+            )
+            for name, template_type, model_name, body in definitions:
+                template = self.sudo().search([
+                    ('company_ids', 'in', [company.id]),
+                    ('template_type', '=', template_type),
+                ], order='active desc, id', limit=1)
+                if template:
+                    continue
+
+                values = {
+                    'name': name,
+                    'template_type': template_type,
+                    'model_id': self.env['ir.model']._get(model_name).id,
+                    'body': body,
+                    'active': True,
+                }
+                # A database upgraded from the old single-company field can
+                # contain valid templates with no M2M company assignment.
+                legacy_template = self.sudo().search([
+                    ('company_ids', '=', False),
+                    ('template_type', '=', template_type),
+                ], order='active desc, id', limit=1) if company == main_company else self.browse()
+                if legacy_template:
+                    legacy_template.write({'company_ids': [(4, company.id)]})
+                else:
+                    values['company_ids'] = [(4, company.id)]
+                    self.sudo().create(values)
         return True
 
     def _render_template(self, body, record):
